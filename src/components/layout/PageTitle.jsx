@@ -26,12 +26,14 @@ const getPageTitle = (pathname) => {
       return 'Ödeme Onay';
     case '/site-sakinleri':
       return 'Site Sakinleri';
-    case '/mesaj':
-      return 'Mesajlar';
+    case '/mesajlar':
+      return 'Mesajlaşma';
     case '/ayarlar':
       return 'Ayarlar';
     case '/yonetici':
       return 'Yönetici Sayfası';
+    case '/teslimat-ekip':
+      return 'Teslimat Ekip';
     default:
       return '';
   }

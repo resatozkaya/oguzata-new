@@ -9,7 +9,6 @@ import {
   MenuItem,
   Badge,
   Divider,
-  Chip,
   Avatar
 } from '@mui/material';
 import {
@@ -43,6 +42,10 @@ const Header = ({ onMenuClick }) => {
     } catch (error) {
       console.error('Çıkış yapılırken hata:', error);
     }
+  };
+
+  const handleEmailClick = () => {
+    navigate('/mesajlar');
   };
 
   return (
@@ -79,7 +82,7 @@ const Header = ({ onMenuClick }) => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton color="inherit">
+          <IconButton color="inherit" onClick={handleEmailClick}>
             <Badge badgeContent={4} color="error">
               <EmailIcon />
             </Badge>
