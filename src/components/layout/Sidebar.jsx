@@ -82,12 +82,9 @@ const menuItems = [
     ]
   },
   {
-    text: 'Mesaj',
-    icon: <DescriptionIcon />,
-    children: [
-      { text: 'Gelen Mesajlar', icon: <DescriptionIcon />, path: '/mesaj' },
-      { text: 'Yeni Mesaj', icon: <DescriptionIcon />, path: '/mesaj-yeni' },
-    ]
+    text: 'Mesajlaşma',
+    icon: <ChatIcon />,
+    path: '/mesajlar'
   },
   {
     text: 'Ayarlar',
@@ -204,25 +201,36 @@ const Sidebar = () => {
                         <ClickAwayListener onClickAway={handleClose}>
                           <List>
                             {item.children.map((child) => (
-                              <ListItemButton
-                                key={child.text}
-                                onClick={() => handleSubMenuClick(child.path)}
-                                sx={{
-                                  py: 1,
-                                  px: 2,
-                                  '&:hover': {
-                                    bgcolor: 'rgba(255, 255, 255, 0.1)',
-                                  },
-                                }}
-                              >
-                                <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
-                                  {child.icon}
-                                </ListItemIcon>
-                                <ListItemText 
-                                  primary={child.text}
-                                  sx={{ '& .MuiTypography-root': { fontSize: '0.9rem' } }}
-                                />
-                              </ListItemButton>
+                              <ListItem key={child.text} disablePadding>
+                                <ListItemButton
+                                  onClick={() => handleSubMenuClick(child.path)}
+                                  selected={location.pathname === child.path}
+                                  sx={{
+                                    '&.Mui-selected': {
+                                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                                      '&:hover': {
+                                        bgcolor: 'rgba(255, 255, 255, 0.2)',
+                                      },
+                                    },
+                                    '&:hover': {
+                                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                                    },
+                                  }}
+                                >
+                                  <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
+                                    {child.icon}
+                                  </ListItemIcon>
+                                  <ListItemText 
+                                    primary={child.text}
+                                    sx={{ 
+                                      '& .MuiTypography-root': { 
+                                        fontSize: '0.9rem',
+                                        fontWeight: 400
+                                      } 
+                                    }}
+                                  />
+                                </ListItemButton>
+                              </ListItem>
                             ))}
                           </List>
                         </ClickAwayListener>

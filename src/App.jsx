@@ -23,6 +23,7 @@ import GunlukRapor from './pages/GunlukRapor';
 import EksiklikYonetimi from './pages/eksiklik/EksiklikYonetimi';
 import SantiyeSecici from './components/SantiyeSecici';
 import DepoYonetimi from './pages/depo/DepoYonetimi';
+import MesajlasmaSayfasi from './components/mesajlasma/MesajlasmaSayfasi';
 
 // Özel route bileşeni
 const PrivateRoute = ({ children }) => {
@@ -70,6 +71,7 @@ const App = () => {
               <Route path="/gunluk-rapor" element={<GunlukRapor />} />
               <Route path="/santiye/:santiyeId/blok/:blokId/eksiklikler" element={<EksiklikYonetimi />} />
               <Route path="/teslimat-ekip" element={<EksiklikYonetimi showTeslimatEkip={true} />} />
+              <Route path="/mesajlar" element={<MesajlasmaSayfasi />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>
