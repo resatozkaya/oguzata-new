@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Box,
@@ -20,12 +20,33 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PageTitle from './PageTitle';
 import { useTheme } from '../../contexts/ThemeContext';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 const Header = ({ onMenuClick }) => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const { sidebarColor } = useTheme();
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    // Kullanıcının okunmamış mesajlarını dinle
+    const messagesRef = collection(db, 'messages');
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', currentUser.uid),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadMessageCount(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser?.uid]);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -82,8 +103,27 @@ const Header = ({ onMenuClick }) => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton color="inherit" onClick={handleEmailClick}>
-            <Badge badgeContent={4} color="error">
+          <IconButton 
+            color="inherit" 
+            onClick={handleEmailClick}
+            sx={{
+              position: 'relative',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.1)'
+              }
+            }}
+          >
+            <Badge 
+              badgeContent={unreadMessageCount} 
+              color="error"
+              sx={{
+                '& .MuiBadge-badge': {
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  fontWeight: 'bold'
+                }
+              }}
+            >
               <EmailIcon />
             </Badge>
           </IconButton>
