@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
   TextField,
@@ -9,7 +10,8 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Typography
+  Typography,
+  InputAdornment
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -25,6 +27,7 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
 const MesajGondermeFormu = ({ alici, gonderen }) => {
+  const theme = useTheme();
   const [mesaj, setMesaj] = useState('');
   const [dosyaYukleniyor, setDosyaYukleniyor] = useState(false);
   const [onizlemeDosyasi, setOnizlemeDosyasi] = useState(null);
@@ -40,32 +43,44 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
       setDosyaYukleniyor(true);
       let dosyaUrl = null;
       let dosyaTipi = null;
+      let dosyaAdi = null;
 
       // Dosya varsa yükle
       if (onizlemeDosyasi) {
         const dosyaRef = ref(storage, `mesaj-dosyalari/${Date.now()}-${onizlemeDosyasi.name}`);
-        await uploadBytes(dosyaRef, onizlemeDosyasi);
+        
+        if (onizlemeDosyasi.type === 'image') {
+          // Base64'ten blob'a çevir
+          const response = await fetch(onizlemeDosyasi.base64);
+          const blob = await response.blob();
+          await uploadBytes(dosyaRef, blob);
+        } else {
+          await uploadBytes(dosyaRef, onizlemeDosyasi.file);
+        }
+        
         dosyaUrl = await getDownloadURL(dosyaRef);
-        dosyaTipi = onizlemeDosyasi.type.startsWith('image/') ? 'image' : 'file';
+        dosyaTipi = onizlemeDosyasi.type;
+        dosyaAdi = onizlemeDosyasi.name;
       }
 
       // Mesajı veritabanına ekle
       await addDoc(collection(db, 'messages'), {
-        text: mesaj.trim(),
         senderId: gonderen.uid,
         receiverId: alici.id,
+        text: mesaj.trim(),
         timestamp: serverTimestamp(),
         read: false,
         fileUrl: dosyaUrl,
         fileType: dosyaTipi,
-        fileName: onizlemeDosyasi?.name,
-        participants: [gonderen.uid, alici.id]
+        fileName: dosyaAdi
       });
 
       setMesaj('');
       setOnizlemeDosyasi(null);
+      setDosyaDialogAcik(false);
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error);
+      alert('Mesaj gönderilemedi');
     } finally {
       setDosyaYukleniyor(false);
     }
@@ -78,14 +93,40 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
         alert('Dosya boyutu 10MB\'dan küçük olmalıdır.');
         return;
       }
-      setOnizlemeDosyasi(dosya);
-      setDosyaDialogAcik(true);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setOnizlemeDosyasi({
+          file: dosya,
+          base64: reader.result,
+          type: dosya.type.startsWith('image/') ? 'image' : 'file',
+          name: dosya.name
+        });
+        setDosyaDialogAcik(true);
+      };
+      reader.readAsDataURL(dosya);
     }
   };
 
-  const handleEmojiSec = (emoji) => {
-    setMesaj(prev => prev + emoji.native);
-    setEmojiPickerAcik(false);
+  // Emoji seçici için dışarı tıklama kontrolü
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerAcik && !event.target.closest('.emoji-mart')) {
+        setEmojiPickerAcik(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [emojiPickerAcik]);
+
+  const renderTooltipContent = (title) => {
+    return dosyaYukleniyor ? (
+      <Box component="span">
+        <CircularProgress size={16} sx={{ mr: 1 }} />
+        Yükleniyor...
+      </Box>
+    ) : title;
   };
 
   return (
@@ -94,11 +135,13 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
       onSubmit={handleMesajGonder}
       sx={{
         p: 2,
-        bgcolor: 'white',
-        borderTop: '1px solid rgba(0, 0, 0, 0.12)',
+        bgcolor: 'background.paper',
+        borderTop: '1px solid',
+        borderColor: 'divider',
         display: 'flex',
         alignItems: 'center',
-        gap: 1
+        gap: 1,
+        position: 'relative'
       }}
     >
       <input
@@ -109,51 +152,80 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
         accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
       />
 
-      <Tooltip title="Dosya Ekle">
-        <IconButton 
-          onClick={() => dosyaInputRef.current.click()}
-          disabled={dosyaYukleniyor}
-        >
-          <AttachFileIcon />
-        </IconButton>
-      </Tooltip>
+      <Box component="span">
+        <Tooltip title={renderTooltipContent("Dosya Ekle")}>
+          <span>
+            <IconButton 
+              onClick={() => {
+                dosyaInputRef.current.accept = "application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                dosyaInputRef.current.click();
+              }}
+              disabled={dosyaYukleniyor}
+              color="primary"
+            >
+              <AttachFileIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
 
-      <Tooltip title="Resim Ekle">
-        <IconButton 
-          onClick={() => {
-            dosyaInputRef.current.accept = 'image/*';
-            dosyaInputRef.current.click();
-          }}
-          disabled={dosyaYukleniyor}
-        >
-          <ImageIcon />
-        </IconButton>
-      </Tooltip>
+      <Box component="span">
+        <Tooltip title={renderTooltipContent("Resim Ekle")}>
+          <span>
+            <IconButton 
+              onClick={() => {
+                dosyaInputRef.current.accept = 'image/*';
+                dosyaInputRef.current.click();
+              }}
+              disabled={dosyaYukleniyor}
+              color="primary"
+            >
+              <ImageIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
 
       <Box sx={{ position: 'relative' }}>
         <Tooltip title="Emoji Ekle">
           <IconButton 
             onClick={() => setEmojiPickerAcik(!emojiPickerAcik)}
             disabled={dosyaYukleniyor}
+            color="primary"
           >
             <EmojiIcon />
           </IconButton>
         </Tooltip>
         {emojiPickerAcik && (
-          <Box sx={{
-            position: 'absolute',
-            bottom: '100%',
-            right: 0,
-            zIndex: 1,
-            boxShadow: 3,
-            borderRadius: 1,
-            overflow: 'hidden'
-          }}>
-            <Picker 
-              data={data} 
-              onEmojiSelect={handleEmojiSec}
-              theme="light"
-              set="apple"
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              zIndex: 1000,
+              boxShadow: 3,
+              borderRadius: 1,
+              bgcolor: 'background.paper',
+              width: '350px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Picker
+              data={data}
+              onEmojiSelect={(emoji) => {
+                setMesaj(prev => prev + emoji.native);
+                setEmojiPickerAcik(false);
+              }}
+              theme={theme.palette.mode}
+              set="google"
+              previewPosition="none"
+              skinTonePosition="none"
+              searchPosition="none"
+              categories={['frequent', 'people', 'nature', 'foods', 'activity', 'places', 'objects', 'symbols', 'flags']}
+              emojiSize={20}
+              emojiButtonSize={28}
+              maxFrequentRows={0}
+              perLine={8}
             />
           </Box>
         )}
@@ -170,36 +242,54 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
         sx={{
           '& .MuiOutlinedInput-root': {
             borderRadius: 2,
+            bgcolor: 'background.paper',
+            '&.Mui-focused': {
+              borderColor: 'primary.main',
+            }
           }
         }}
       />
 
-      <Tooltip title="Gönder">
-        <IconButton 
-          type="submit"
-          color="primary"
-          disabled={(!mesaj.trim() && !onizlemeDosyasi) || dosyaYukleniyor}
-        >
-          {dosyaYukleniyor ? <CircularProgress size={24} /> : <SendIcon />}
-        </IconButton>
+      <Tooltip title={dosyaYukleniyor ? "Yükleniyor..." : "Gönder"}>
+        <span>
+          <IconButton
+            type="submit"
+            disabled={(!mesaj.trim() && !onizlemeDosyasi) || dosyaYukleniyor}
+            color="primary"
+            size="large"
+          >
+            {dosyaYukleniyor ? (
+              <CircularProgress size={24} />
+            ) : (
+              <SendIcon />
+            )}
+          </IconButton>
+        </span>
       </Tooltip>
 
-      <Dialog 
-        open={dosyaDialogAcik} 
+      <Dialog
+        open={dosyaDialogAcik}
         onClose={() => {
           setDosyaDialogAcik(false);
           setOnizlemeDosyasi(null);
         }}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="h6">Dosya Önizleme</Typography>
-            {onizlemeDosyasi?.type.startsWith('image/') ? (
+            {onizlemeDosyasi?.type === 'image' ? (
               <Box
                 component="img"
-                src={URL.createObjectURL(onizlemeDosyasi)}
+                src={onizlemeDosyasi.base64}
                 alt="Önizleme"
-                sx={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: 300,
+                  objectFit: 'contain',
+                  borderRadius: 1
+                }}
               />
             ) : (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -210,7 +300,7 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => {
               setDosyaDialogAcik(false);
               setOnizlemeDosyasi(null);
@@ -219,11 +309,8 @@ const MesajGondermeFormu = ({ alici, gonderen }) => {
           >
             İptal
           </Button>
-          <Button 
-            onClick={() => {
-              setDosyaDialogAcik(false);
-              handleMesajGonder({ preventDefault: () => {} });
-            }}
+          <Button
+            onClick={handleMesajGonder}
             variant="contained"
             startIcon={<SendIcon />}
           >
