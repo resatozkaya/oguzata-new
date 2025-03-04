@@ -13,7 +13,9 @@ import {
   Card,
   CardContent,
   Button,
-  LinearProgress
+  LinearProgress,
+  DialogTitle,
+  DialogActions
 } from '@mui/material';
 import { useNavigate, Link } from 'react-router-dom';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -29,10 +31,14 @@ import {
   Warning as WarningIcon,
   TrendingUp as TrendingUpIcon,
   ArrowUpward as ArrowUpwardIcon,
-  ArrowDownward as ArrowDownwardIcon
+  ArrowDownward as ArrowDownwardIcon,
+  Engineering as EngineeringIcon,
+  Timeline as TimelineIcon,
+  Circle as CircleIcon,
+  Warehouse as WarehouseIcon
 } from '@mui/icons-material';
 import {
-  collection, getDocs, query, orderBy
+  collection, getDocs, query, orderBy, doc, getDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -126,7 +132,7 @@ const StatCard = ({ label, value, icon, trend, trendUp, subtext, onClick }) => {
             px: 1,
             py: 0.5,
             borderRadius: 1,
-            bgcolor: trendUp ? 'success.main' : 'error.main',
+            bgcolor: trendUp ? sidebarColor : 'error.main',
             color: '#fff',
             typography: 'caption'
           }}>
@@ -157,124 +163,255 @@ const StatCard = ({ label, value, icon, trend, trendUp, subtext, onClick }) => {
   );
 };
 
-const ProjectCard = ({ santiye }) => {
+const ProjectCard = ({ santiye, bugunCalisanlar }) => {
   const { sidebarColor, isDarkMode } = useTheme();
+  const [openImage, setOpenImage] = useState(false);
+  const defaultLogo = '/logo.png';
 
-  // İlerleme durumunu hesapla
-  const progressValue = santiye.tamamlanmaOrani || 0;
+  // Tema renginden gradient oluştur
+  const getGradient = (opacity = 1) => {
+    return `linear-gradient(90deg, ${sidebarColor} 0%, ${adjustColor(sidebarColor, -20)} 100%)`;
+  };
+
+  // Rengi koyulaştır/açıklaştır
+  const adjustColor = (color, amount) => {
+    const hex = color.replace('#', '');
+    const r = Math.max(Math.min(parseInt(hex.substring(0, 2), 16) + amount, 255), 0);
+    const g = Math.max(Math.min(parseInt(hex.substring(2, 4), 16) + amount, 255), 0);
+    const b = Math.max(Math.min(parseInt(hex.substring(4, 6), 16) + amount, 255), 0);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  };
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        border: '2px solid #e0e0e0',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-        '&:hover': {
-          border: '2px solid #9c27b0',
-          boxShadow: '0 6px 12px rgba(0,0,0,0.15)',
-          transform: 'translateY(-2px)',
-          transition: 'all 0.3s ease'
-        }
-      }}
-    >
-      {santiye.resimUrl && (
-        <Box
-          component="img"
-          src={santiye.resimUrl}
-          alt={santiye.ad}
-          sx={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 60,
-            height: 60,
-            borderRadius: 1,
-            objectFit: 'cover',
-            border: 1,
-            borderColor: 'divider'
-          }}
-        />
-      )}
+    <Card className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-white'} shadow-lg hover:shadow-xl transition-all duration-300`}>
+      {/* Şantiye Başlık Kısmı - Tema Rengine Uygun Gradient */}
+      <Box sx={{
+        p: 2,
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+        background: isDarkMode 
+          ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -40)}80 0%, ${adjustColor(sidebarColor, -60)}80 100%)`
+          : getGradient()
+      }}>
+        <Box className="flex justify-between items-center">
+          <Typography variant="h6" className="font-bold text-white mb-2">
+            {santiye.ad}
+          </Typography>
+          <IconButton
+            onClick={() => setOpenImage(true)}
+            sx={{
+              width: 56,
+              height: 56,
+              padding: 0.5,
+              marginLeft: 2,
+              '&:hover': {
+                transform: 'scale(1.05)',
+                transition: 'transform 0.2s'
+              },
+              '& img': {
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '50%',
+                border: `3px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.8)'}`,
+                boxShadow: isDarkMode ? '0 0 10px rgba(0,0,0,0.3)' : '0 0 10px rgba(255,255,255,0.3)'
+              }
+            }}
+          >
+            <img 
+              src={santiye.resimUrl || defaultLogo} 
+              alt={santiye.ad} 
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = defaultLogo;
+              }}
+            />
+          </IconButton>
 
-      <Box sx={{ p: 2, flexGrow: 1 }}>
-        <Typography variant="h6" component="h3" gutterBottom>
-          {santiye.ad}
-        </Typography>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Box component="span" sx={{ mr: 1 }}>
+          <Dialog
+            open={openImage}
+            onClose={() => setOpenImage(false)}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle sx={{ 
+              background: isDarkMode 
+                ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -40)}80 0%, ${adjustColor(sidebarColor, -60)}80 100%)`
+                : getGradient(),
+              color: 'white'
+            }}>
+              {santiye.ad}
+            </DialogTitle>
+            <DialogContent>
+              <img
+                src={santiye.resimUrl || defaultLogo}
+                alt={santiye.ad}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  maxHeight: '80vh',
+                  objectFit: 'contain',
+                  marginTop: '16px'
+                }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = defaultLogo;
+                }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setOpenImage(false)} sx={{ color: sidebarColor }}>
+                Kapat
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </Box>
+      </Box>
+
+      <CardContent>
+        {/* Personel Sayıları - Tema Rengine Uygun Arkaplanlar */}
+        <Box className="flex flex-wrap gap-4 mb-6 -mt-2">
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            p: 2,
+            borderRadius: 2,
+            backgroundColor: isDarkMode 
+              ? `${adjustColor(sidebarColor, -40)}20`
+              : `${adjustColor(sidebarColor, 40)}20`
+          }}>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 'bold',
+              color: isDarkMode ? adjustColor(sidebarColor, 40) : sidebarColor 
+            }}>
+              {santiye.personelSayisi || 0}
+            </Typography>
+            <Typography variant="body2" sx={{ 
+              color: isDarkMode ? `${adjustColor(sidebarColor, 20)}` : `${adjustColor(sidebarColor, -20)}`,
+              fontWeight: 500
+            }}>
+              Kayıtlı Personel
+            </Typography>
+          </Box>
+
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            p: 2,
+            borderRadius: 2,
+            backgroundColor: isDarkMode 
+              ? `${adjustColor(sidebarColor, -40)}20`
+              : `${adjustColor(sidebarColor, 40)}20`
+          }}>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 'bold',
+              color: isDarkMode ? adjustColor(sidebarColor, 40) : sidebarColor 
+            }}>
+              {bugunCalisanlar[santiye.id] || 0}
+            </Typography>
+            <Typography variant="body2" sx={{ 
+              color: isDarkMode ? `${adjustColor(sidebarColor, 20)}` : `${adjustColor(sidebarColor, -20)}`,
+              fontWeight: 500
+            }}>
+              Bugün Çalışan
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box className="space-y-3">
+          {/* Proje Müdürü ve Şantiye Şefi Bilgileri */}
+          <Box sx={{
+            p: 2,
+            borderRadius: 2,
+            backgroundColor: isDarkMode 
+              ? `${adjustColor(sidebarColor, -40)}10`
+              : `${adjustColor(sidebarColor, 40)}10`
+          }}>
+            <Box className="flex items-center gap-2 mb-2">
+              <PersonIcon sx={{ 
+                color: isDarkMode ? adjustColor(sidebarColor, 20) : sidebarColor 
+              }} />
+              <Box>
+                <Typography variant="body2" className="font-medium">
+                  Proje Müdürü
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {santiye.projeMuduru || "Proje müdürü belirtilmedi"}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box className="flex items-center gap-2">
+              <EngineeringIcon sx={{ 
+                color: isDarkMode ? adjustColor(sidebarColor, 20) : sidebarColor 
+              }} />
+              <Box>
+                <Typography variant="body2" className="font-medium">
+                  Şantiye Şefi
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {santiye.santiyeSefi || "Şantiye şefi belirtilmedi"}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Progress Bar - Tema Rengine Uygun */}
+          <Box className="mt-4">
+            <Typography variant="body2" className="font-medium mb-2">
+              İlerleme Durumu
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={santiye.tamamlanmaOrani ? (santiye.tamamlanmaOrani / 100) * 100 : 0}
+              sx={{
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                '& .MuiLinearProgress-bar': {
+                  background: isDarkMode 
+                    ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -20)}99 0%, ${adjustColor(sidebarColor, -40)}99 100%)`
+                    : getGradient(),
+                  borderRadius: 5
+                }
+              }}
+            />
+            <Box className="flex justify-between mt-1">
+              <Typography variant="body2" color="textSecondary">
+                Tamamlanan: {santiye.tamamlananEksiklik || 0}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                {santiye.tamamlananEksiklik && santiye.eksiklikSayisi 
+                  ? `${Math.round((santiye.tamamlananEksiklik / santiye.eksiklikSayisi) * 100)}%` 
+                  : '0%'}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Toplam: {santiye.eksiklikSayisi || 0}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Durum Chip - Tema Rengine Uygun */}
+          <Box className="flex items-center gap-2 mt-4">
+            <Typography variant="body2" className="font-medium">
+              Durum:
+            </Typography>
             <Chip
-              label={santiye.personelSayisi} 
-              color="primary"
+              label={santiye.durum || "Aktif"}
               size="small"
+              className="font-medium"
+              sx={{
+                background: isDarkMode
+                  ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -20)}99 0%, ${adjustColor(sidebarColor, -40)}99 100%)`
+                  : getGradient(),
+                color: 'white'
+              }}
             />
           </Box>
         </Box>
-
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          <strong>Proje Müdürü:</strong> {santiye.proje_muduru || '***'}
-        </Typography>
-        
-        <Typography variant="body2" component="div" gutterBottom>
-          <strong>Şantiye Şefi:</strong> {santiye.santiye_sefi || '***'}
-        </Typography>
-
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="body2" gutterBottom>
-            <strong>İlerleme Durumu:</strong>
-          </Typography>
-          <LinearProgress 
-            variant="determinate" 
-            value={progressValue}
-            sx={{
-              height: 8,
-              borderRadius: 2,
-              bgcolor: alpha(sidebarColor, 0.1),
-              '& .MuiLinearProgress-bar': {
-                bgcolor: progressValue >= 75 ? alpha(sidebarColor, 1) :
-                         progressValue >= 50 ? alpha(sidebarColor, 0.8) :
-                         alpha(sidebarColor, 0.6),
-                borderRadius: 2
-              }
-            }}
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-            <Typography variant="caption" color="text.secondary">
-              Tamamlanan: {santiye.tamamlananEksiklik}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Toplam: {santiye.eksiklikSayisi}
-            </Typography>
-          </Box>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              display: 'block',
-              textAlign: 'right',
-              mt: 0.5,
-              color: 'text.secondary'
-            }}
-          >
-            {`${Math.round(progressValue)}%`}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-          <Typography variant="body2" component="span">
-            <strong>Durum:</strong>
-          </Typography>
-          <Chip
-            label={santiye.durum || 'Aktif'}
-            size="small"
-            color={santiye.durum === 'Tamamlandı' ? 'success' : 
-                   santiye.durum === 'Durduruldu' ? 'error' : 
-                   santiye.durum === 'Beklemede' ? 'warning' : 'primary'}
-          />
-        </Box>
-      </Box>
+      </CardContent>
     </Card>
   );
 };
@@ -289,6 +426,7 @@ const HomePage = () => {
     total: 0,
     santiyePersonel: {} // Her şantiye için personel sayısı
   });
+  const [bugunCalisanlar, setBugunCalisanlar] = useState({});
   const { sidebarColor } = useTheme();
   const navigate = useNavigate();
 
@@ -311,6 +449,15 @@ const HomePage = () => {
           resimUrl: doc.data().resimUrl || doc.data().resimler?.[0] || null,
           durum: doc.data().durum || 'Aktif'
         }));
+
+        // Depo verilerini çek
+        const depoRef = collection(db, 'depolar');
+        const depoSnapshot = await getDocs(depoRef);
+        const depoData = depoSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        const aktifDepoSayisi = depoData.filter(d => d.durum === 'Aktif').length;
 
         // Her şantiye için eksiklik verilerini al
         const santiyelerWithProgress = await Promise.all(santiyelerData.map(async (santiye) => {
@@ -377,6 +524,36 @@ const HomePage = () => {
           }
         }));
 
+        // Bugünün puantaj verilerini çek
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentYear = today.getFullYear();
+        const currentDay = today.getDate();
+
+        const calisanSayilari = {};
+
+        // Her şantiye için bugün çalışanları kontrol et
+        for (const santiye of santiyelerData) {
+          const puantajDoc = await getDoc(doc(db, "puantaj", `${currentYear}-${currentMonth}-${santiye.ad}`));
+          let calisanSayisi = 0;
+
+          if (puantajDoc.exists()) {
+            const puantajData = puantajDoc.data();
+            // Tüm personelleri kontrol et
+            Object.values(puantajData).forEach(personelData => {
+              // Bugünün verisini kontrol et
+              const bugunData = personelData[currentDay];
+              if (bugunData && bugunData.status && 
+                  ["tam", "yarim", "mesai"].includes(bugunData.status)) {
+                calisanSayisi++;
+              }
+            });
+          }
+          calisanSayilari[santiye.id] = calisanSayisi;
+        }
+
+        setBugunCalisanlar(calisanSayilari);
+
         // Personel verileri ve şantiye bazlı sayılar
         const personelRef = collection(db, 'personeller');
         const personelSnapshot = await getDocs(personelRef);
@@ -434,38 +611,26 @@ const HomePage = () => {
         // İstatistik kartları
         const statsData = [
           {
-            label: "Aktif Şantiyeler",
-            value: santiyelerData.filter(s => s.durum?.toLowerCase() === 'aktif').length || 1,
-            icon: <BusinessIcon sx={{ fontSize: 24, color: 'primary.main' }} />,
-            trend: "+12%",
-            trendUp: true,
+            value: santiyelerData.length,
+            label: "Şantiye",
+            icon: <BusinessIcon sx={{ fontSize: 24, color: sidebarColor }} />,
             onClick: () => navigate('/santiye')
           },
           {
-            label: "İş Programı",
-            value: 0,
-            icon: <AssignmentIcon sx={{ fontSize: 24, color: '#ff9800' }} />,
-            trend: "Tümü Planlandı",
-            trendUp: true,
-            onClick: () => navigate('/is-programi')
+            value: totalPersonel,
+            label: "Personel",
+            icon: <GroupIcon sx={{ fontSize: 24, color: sidebarColor }} />,
+            onClick: () => navigate('/personel')
           },
           {
-            label: "Depo Durumu",
-            value: 0,
-            icon: <WarningIcon sx={{ fontSize: 24, color: '#f44336' }} />,
-            trend: "Stok Normal",
-            trendUp: true,
+            value: depoData.length,
+            label: "Depo",
+            icon: <WarehouseIcon sx={{ fontSize: 24, color: sidebarColor }} />,
             onClick: () => navigate('/depo')
-          },
-          {
-            label: "Personel Durumu",
-            icon: <TrendingUpIcon sx={{ fontSize: 24, color: '#4caf50' }} />,
-            trend: `${totalPersonel} Aktif Personel`,
-            trendUp: totalPersonel > 0,
-            subtext: `${maasliCount} Maaşlı\n${yevmiyeCount} Yevmiyeli`,
-            onClick: () => navigate('/puantaj')
           }
         ];
+
+        
         setStats(statsData);
 
       } catch (error) {
@@ -488,18 +653,20 @@ const HomePage = () => {
 
   return (
     <Box sx={{ p: 3, bgcolor: 'background.default', minHeight: '100vh' }}>
-      <Grid container spacing={3} sx={{ mb: 12, pb: 4 }}>
-        {stats.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
-            <StatCard {...stat} />
-          </Grid>
-        ))}
-      </Grid>
+      <Box sx={{ mb: 4 }}>
+        <Grid container spacing={3} sx={{ mb: 12, pb: 4, maxWidth: "1000px", mx: "auto" }} justifyContent="center">
+          {stats.map((stat, index) => (
+            <Grid item xs={12} sm={6} md={4} key={index}>
+              <StatCard {...stat} />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
       <Grid container spacing={3}>
         {santiyeler.map((santiye) => (
           <Grid item xs={12} sm={6} md={3} key={santiye.id}>
-            <ProjectCard santiye={santiye} />
+            <ProjectCard santiye={santiye} bugunCalisanlar={bugunCalisanlar} />
           </Grid>
         ))}
       </Grid>
