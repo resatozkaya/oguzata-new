@@ -121,7 +121,7 @@ const EksiklikFiltrele = ({ filtreler, setFiltreler, taseronlar = [] }) => {
               <MenuItem value="">Tümü</MenuItem>
               {taseronlar.map(taseron => (
                 <MenuItem key={taseron.id} value={taseron.id}>
-                  {taseron.ad}
+                  {taseron.id.replace(/_/g, ' ')}
                 </MenuItem>
               ))}
             </Select>
@@ -142,4 +142,4 @@ const EksiklikFiltrele = ({ filtreler, setFiltreler, taseronlar = [] }) => {
   );
 };
 
-export default EksiklikFiltrele; 
+export default EksiklikFiltrele;

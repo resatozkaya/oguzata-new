@@ -31,7 +31,7 @@ const KAT_TIPLERI = [
   { value: 'CATI', label: 'Çatı Katı' }
 ];
 
-const BinaYapisiDuzenle = ({ open, onClose, santiye, blok, onUpdate, yenileVerileri }) => {
+const BinaYapisiDuzenle = ({ open, onClose, santiye, blok, onUpdate, yenileVerileri, isDarkMode }) => {
   const navigate = useNavigate();
   const [katlar, setKatlar] = useState([]);
   const [editingKat, setEditingKat] = useState(null);
@@ -281,190 +281,161 @@ const BinaYapisiDuzenle = ({ open, onClose, santiye, blok, onUpdate, yenileVeril
   return (
     <Dialog 
       open={open} 
-      onClose={onClose} 
-      maxWidth="md" 
+      onClose={onClose}
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: '#121212',
-          color: 'white',
-          minHeight: '80vh'
+          bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff'
         }
       }}
     >
       <DialogTitle>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          pb: 2
-        }}>
-          <Box>
-            <Typography variant="h6">
-              {blok?.ad} Blok - Bina Yapısını Düzenle
-            </Typography>
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
-              {santiye?.ad}
-            </Typography>
-          </Box>
-          <Box>
-            {KAT_TIPLERI.map(tip => (
+        <Typography variant="h6" sx={{ color: isDarkMode ? '#2196f3' : '#1976d2' }}>
+          Bina Yapısını Düzenle
+        </Typography>
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2 }}>
+          {/* Kat Tipleri Butonları */}
+          <Box sx={{ mb: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {KAT_TIPLERI.map((tip) => (
               <Button
                 key={tip.value}
+                variant="outlined"
                 startIcon={<AddIcon />}
                 onClick={() => handleKatEkle(tip.value)}
-                variant="outlined"
-                size="small"
-                sx={{ 
-                  ml: 1,
-                  borderColor: 'rgba(255,255,255,0.3)',
-                  color: 'white',
+                sx={{
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.23)',
+                  color: isDarkMode ? '#fff' : 'inherit',
                   '&:hover': {
-                    borderColor: 'white',
-                    bgcolor: 'rgba(255,255,255,0.1)'
+                    borderColor: isDarkMode ? '#2196f3' : '#1976d2',
+                    bgcolor: isDarkMode ? 'rgba(33,150,243,0.08)' : 'rgba(25,118,210,0.08)'
                   }
                 }}
               >
-                {tip.label}
+                {tip.label} Ekle
               </Button>
             ))}
           </Box>
-        </Box>
-      </DialogTitle>
 
-      <DialogContent sx={{ bgcolor: '#121212' }}>
-        {katlar.map((kat, katIndex) => (
-          <Box 
-            key={katIndex} 
-            sx={{ 
-              mb: 3, 
-              p: 2, 
-              bgcolor: '#1e1e1e', 
-              borderRadius: 1,
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <TextField
-                label="Kat No"
-                value={kat.no}
-                onChange={(e) => handleKatDuzenle(katIndex, 'no', e.target.value)}
-                size="small"
-                sx={{ 
-                  width: 100, 
-                  mr: 2,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    '& fieldset': {
-                      borderColor: 'rgba(255,255,255,0.3)',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255,255,255,0.7)',
-                  }
-                }}
-              />
-              <FormControl 
-                size="small" 
-                sx={{ 
-                  width: 150, 
-                  mr: 2,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    '& fieldset': {
-                      borderColor: 'rgba(255,255,255,0.3)',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255,255,255,0.7)',
-                  }
-                }}
-              >
-                <InputLabel>Kat Tipi</InputLabel>
-                <Select
-                  value={kat.tip}
-                  onChange={(e) => handleKatDuzenle(katIndex, 'tip', e.target.value)}
-                  label="Kat Tipi"
-                >
-                  {KAT_TIPLERI.map(tip => (
-                    <MenuItem key={tip.value} value={tip.value}>{tip.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <IconButton 
-                onClick={() => handleKatSil(katIndex)} 
-                color="error"
-                sx={{ 
-                  '&:hover': {
-                    bgcolor: 'rgba(255,0,0,0.1)'
-                  }
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-              <Button
-                startIcon={<AddIcon />}
-                onClick={() => handleDaireEkle(katIndex)}
-                variant="contained"
-                size="small"
-                sx={{ 
-                  ml: 'auto',
-                  bgcolor: '#2196f3',
-                  '&:hover': {
-                    bgcolor: '#1976d2'
-                  }
-                }}
-              >
-                Daire Ekle
-              </Button>
-            </Box>
-
-            <Box sx={{ pl: 2 }}>
-              {kat.daireler?.map((daire, daireIndex) => (
-                <Box key={daireIndex} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <TextField
-                    label="Daire No"
-                    value={daire.no}
-                    onChange={(e) => handleDaireDuzenle(katIndex, daireIndex, e.target.value)}
+          {/* Katlar Listesi */}
+          {katlar.map((kat, katIndex) => (
+            <Box
+              key={katIndex}
+              sx={{
+                mb: 2,
+                p: 2,
+                bgcolor: isDarkMode ? '#263238' : '#f5f5f5',
+                borderRadius: 1,
+                border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              }}
+            >
+              {/* Kat Başlığı */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 2,
+                pb: 1,
+                borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}` 
+              }}>
+                <Typography sx={{ 
+                  flex: 1,
+                  color: isDarkMode ? '#2196f3' : '#1976d2',
+                  fontWeight: 'bold' 
+                }}>
+                  {kat.no}. Kat ({kat.tip})
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <IconButton 
                     size="small"
+                    onClick={() => handleDaireEkle(katIndex)}
                     sx={{ 
-                      width: 150, 
-                      mr: 2,
-                      '& .MuiOutlinedInput-root': {
-                        color: 'white',
-                        '& fieldset': {
-                          borderColor: 'rgba(255,255,255,0.3)',
-                        },
-                      },
-                      '& .MuiInputLabel-root': {
-                        color: 'rgba(255,255,255,0.7)',
+                      color: isDarkMode ? '#2196f3' : '#1976d2',
+                      '&:hover': {
+                        bgcolor: isDarkMode ? 'rgba(33,150,243,0.08)' : 'rgba(25,118,210,0.08)'
                       }
                     }}
-                  />
+                  >
+                    <AddIcon />
+                  </IconButton>
                   <IconButton 
-                    onClick={() => handleDaireSil(katIndex, daireIndex)} 
-                    color="error"
+                    size="small" 
+                    onClick={() => handleKatSil(katIndex)}
                     sx={{ 
+                      color: isDarkMode ? '#f44336' : '#d32f2f',
                       '&:hover': {
-                        bgcolor: 'rgba(255,0,0,0.1)'
+                        bgcolor: isDarkMode ? 'rgba(244,67,54,0.08)' : 'rgba(211,47,47,0.08)'
                       }
                     }}
                   >
                     <DeleteIcon />
                   </IconButton>
                 </Box>
-              ))}
-            </Box>
-          </Box>
-        ))}
-      </DialogContent>
+              </Box>
 
-      <DialogActions sx={{ bgcolor: '#121212', borderTop: '1px solid rgba(255,255,255,0.1)', p: 2 }}>
-        <Button onClick={onClose} disabled={yukleniyor}>
+              {/* Daireler */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {kat.daireler?.map((daire, daireIndex) => (
+                  <Box
+                    key={daireIndex}
+                    sx={{
+                      p: 1,
+                      bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                      borderRadius: 1,
+                      border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <TextField
+                      size="small"
+                      value={daire.no}
+                      onChange={(e) => handleDaireDuzenle(katIndex, daireIndex, e.target.value)}
+                      sx={{
+                        '& .MuiInputBase-input': {
+                          color: isDarkMode ? '#fff' : 'inherit',
+                        },
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: isDarkMode ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.23)',
+                          },
+                          '&:hover fieldset': {
+                            borderColor: isDarkMode ? '#2196f3' : '#1976d2',
+                          },
+                        },
+                      }}
+                    />
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleDaireSil(katIndex, daireIndex)}
+                      sx={{ 
+                        color: isDarkMode ? '#f44336' : '#d32f2f',
+                        '&:hover': {
+                          bgcolor: isDarkMode ? 'rgba(244,67,54,0.08)' : 'rgba(211,47,47,0.08)'
+                        }
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ p: 2, bgcolor: isDarkMode ? '#1e1e1e' : '#ffffff' }}>
+        <Button onClick={onClose} sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
           İptal
         </Button>
-        <Button onClick={handleKaydet} variant="contained" disabled={yukleniyor}>
+        <Button 
+          onClick={handleKaydet} 
+          variant="contained" 
+          color="primary"
+          disabled={yukleniyor}
+        >
           {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
         </Button>
       </DialogActions>

@@ -44,42 +44,16 @@ const menuItems = [
   { text: 'İş Programı', icon: <AssignmentIcon />, path: '/is-programi' },
   { text: 'Depo Yönetimi', icon: <InventoryIcon />, path: '/depo' },
   { text: 'Günlük Rapor', icon: <DescriptionIcon />, path: '/gunluk-rapor' },
+  { text: 'Sözleşme', icon: <DescriptionIcon />, path: '/sozlesme' },
   {
-    text: 'Rapor Listesi',
-    icon: <DescriptionIcon />,
-    children: [
-      { text: 'Rapor Listesi', icon: <DescriptionIcon />, path: '/rapor' },
-      { text: 'Yeni Rapor', icon: <DescriptionIcon />, path: '/rapor-kayit' },
-    ]
-  },
-  {
-    text: 'Hakediş Yönetimi',
+    text: 'Hakediş',
     icon: <AccountBalanceIcon />,
-    children: [
-      { text: 'Hakediş Listesi', icon: <AccountBalanceIcon />, path: '/hakedis' },
-      { text: 'Yeni Hakediş', icon: <AccountBalanceIcon />, path: '/hakedis-kayit' },
-    ]
+    path: '/hakedis'
   },
   {
     text: 'Teslimat Ekip',
     icon: <AccessTimeIcon />,
     path: '/teslimat-ekip'
-  },
-  {
-    text: 'Ödeme Onay',
-    icon: <ReceiptIcon />,
-    children: [
-      { text: 'Ödeme Listesi', icon: <ReceiptIcon />, path: '/odeme' },
-      { text: 'Yeni Ödeme', icon: <ReceiptIcon />, path: '/odeme-kayit' },
-    ]
-  },
-  {
-    text: 'Site Sakinleri',
-    icon: <PeopleIcon />,
-    children: [
-      { text: 'Sakin Listesi', icon: <PeopleIcon />, path: '/sakin' },
-      { text: 'Yeni Sakin', icon: <PeopleIcon />, path: '/sakin-kayit' },
-    ]
   },
   {
     text: 'Mesajlaşma',
@@ -90,14 +64,6 @@ const menuItems = [
     text: 'Ayarlar',
     icon: <SettingsIcon />,
     path: '/settings'
-  },
-  {
-    text: 'Yönetici Sayfası',
-    icon: <SettingsIcon />,
-    children: [
-      { text: 'Kullanıcılar', icon: <PeopleIcon />, path: '/kullanicilar' },
-      { text: 'Sistem Ayarları', icon: <SettingsIcon />, path: '/sistem-ayarlari' },
-    ]
   }
 ];
 

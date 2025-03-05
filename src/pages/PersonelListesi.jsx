@@ -18,11 +18,13 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton as MuiIconButton
+  IconButton as MuiIconButton,
+  Button
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { personnelService } from '../services/personnelService';
 
@@ -138,7 +140,7 @@ const PersonelListesi = () => {
       )}
 
       {/* Filtreler */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
         <TextField
           size="small"
           placeholder="Arama..."
@@ -171,6 +173,14 @@ const PersonelListesi = () => {
             </MenuItem>
           ))}
         </TextField>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/personel/yeni')}
+        >
+          Yeni Personel
+        </Button>
       </Box>
 
       {/* Tablo */}

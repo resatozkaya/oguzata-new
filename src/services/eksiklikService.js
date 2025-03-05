@@ -28,7 +28,7 @@ export const eksiklikService = {
       const eksikliklerRef = collection(db, `santiyeler/${santiyeId}/bloklar/${blokId}/eksiklikler`);
       let q = query(eksikliklerRef, orderBy('olusturmaTarihi', 'desc'));
 
-      // Filtreleri uygula
+      // Diğer filtreleri Firestore'da uygula
       if (filters.durum) {
         q = query(q, where('durum', '==', filters.durum));
       }
@@ -38,17 +38,37 @@ export const eksiklikService = {
       if (filters.kategori) {
         q = query(q, where('kategori', '==', filters.kategori));
       }
+
+      // Önce tüm eksiklikleri çek
+      const snapshot = await getDocs(q);
+      let filteredDocs = snapshot.docs;
+
+      // Taşeron filtresi varsa JavaScript tarafında filtrele
       if (filters.taseron) {
-        q = query(q, where('taseron', '==', filters.taseron));
+        // Aranan taşeron adını normalize et (boşlukları alt tire yap)
+        const arananTaseron = filters.taseron.toUpperCase().trim();
+        const arananTaseronNormalized = arananTaseron.replace(/\s+/g, '_');
+
+        filteredDocs = filteredDocs.filter(doc => {
+          const data = doc.data();
+          if (!data.taseron) return false;
+
+          // Kayıtlı taşeron adını normalize et
+          const kayitliTaseron = data.taseron.toUpperCase().trim();
+          const kayitliTaseronNormalized = kayitliTaseron.replace(/\s+/g, '_');
+
+          // İki versiyonu da kontrol et (hem normal hem normalize edilmiş)
+          return kayitliTaseron === arananTaseron || kayitliTaseronNormalized === arananTaseronNormalized;
+        });
       }
 
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return filteredDocs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         olusturmaTarihi: doc.data().olusturmaTarihi?.toDate(),
         guncellenmeTarihi: doc.data().guncellenmeTarihi?.toDate()
       }));
+
     } catch (error) {
       console.error('Eksiklikler getirilirken hata:', error);
       throw error;

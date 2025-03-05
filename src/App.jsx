@@ -24,6 +24,9 @@ import EksiklikYonetimi from './pages/eksiklik/EksiklikYonetimi';
 import SantiyeSecici from './components/SantiyeSecici';
 import DepoYonetimi from './pages/depo/DepoYonetimi';
 import MesajlasmaSayfasi from './components/mesajlasma/MesajlasmaSayfasi';
+import Sozlesme from './pages/Sozlesme';
+import Hakedis from './pages/Hakedis';
+import HakedisForm from './pages/hakedis/HakedisForm';
 
 // Özel route bileşeni
 const PrivateRoute = ({ children }) => {
@@ -72,6 +75,9 @@ const App = () => {
               <Route path="/santiye/:santiyeId/blok/:blokId/eksiklikler" element={<EksiklikYonetimi />} />
               <Route path="/teslimat-ekip" element={<EksiklikYonetimi showTeslimatEkip={true} />} />
               <Route path="/mesajlar" element={<MesajlasmaSayfasi />} />
+              <Route path="/sozlesme" element={<Sozlesme />} />
+              <Route path="/hakedis" element={<Hakedis />} />
+              <Route path="/hakedis/duzenle/:id" element={<HakedisForm />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Layout>

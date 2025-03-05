@@ -40,61 +40,68 @@ const Puantaj = () => {
 
   // Puantaj durumları
   const PUANTAJ_DURUMLARI = {
+    "bos": {
+      color: "bg-white",
+      textColor: "text-gray-700",
+      description: "Boş",
+      value: 0,
+      buttonColor: "#FFFFFF"
+    },
     "tam": { 
-      color: "bg-green-600", 
+      color: "bg-green-500", 
       textColor: "text-white", 
       description: "Tam Gün", 
       value: 1,
-      buttonColor: "#4CAF50" // Yeşil
+      buttonColor: "#4CAF50"
     },
     "yarim": { 
       color: "bg-yellow-500", 
       textColor: "text-white", 
       description: "Yarım Gün", 
       value: 0.5,
-      buttonColor: "#FFC107" // Sarı
+      buttonColor: "#FFC107"
     },
     "mesai": { 
-      color: "bg-red-600", 
+      color: "bg-red-500", 
       textColor: "text-white", 
       description: "Mesai", 
       value: 1.5,
-      buttonColor: "#F44336" // Kırmızı
-    },
-    "izinli": { 
-      color: "bg-blue-600", 
-      textColor: "text-white", 
-      description: "İzinli", 
-      value: -1,
-      buttonColor: "#2196F3" // Mavi
-    },
-    "raporlu": { 
-      color: "bg-purple-600", 
-      textColor: "text-white", 
-      description: "Raporlu", 
-      value: -1,
-      buttonColor: "#9C27B0" // Mor
+      buttonColor: "#F44336"
     },
     "pazar": { 
-      color: "bg-gray-600", 
+      color: "bg-gray-500", 
       textColor: "text-white", 
       description: "Pazar", 
       value: 1,
-      buttonColor: "#757575" // Gri
+      buttonColor: "#757575"
+    },
+    "izinli": { 
+      color: "bg-cyan-500", 
+      textColor: "text-white", 
+      description: "İzinli", 
+      value: 0,
+      buttonColor: "#00BCD4"
+    },
+    "raporlu": { 
+      color: "bg-purple-500", 
+      textColor: "text-white", 
+      description: "Raporlu", 
+      value: 0,
+      buttonColor: "#9C27B0"
     },
     "resmiTatil": { 
-      color: "bg-pink-600", 
+      color: "bg-pink-500", 
       textColor: "text-white", 
       description: "Resmi Tatil", 
       value: 1,
-      buttonColor: "#E91E63" // Pembe
+      buttonColor: "#E91E63"
     },
-    "bos": { 
-      color: "bg-gray-200", 
-      textColor: "text-gray-700", 
-      description: "Boş", 
+    "temizle": {
+      color: "bg-white",
+      textColor: "text-gray-700",
+      description: "Temizle",
       value: 0,
-      buttonColor: "#E0E0E0" // Açık gri
+      buttonColor: "#FFFFFF"
     }
   };
 
@@ -219,10 +226,6 @@ const Puantaj = () => {
 
   // Hücre tıklama işleyicisi
   const handleCellClick = (personelName, day) => {
-    if (!selectedSantiye) {
-      showSnackbar("Lütfen şantiye seçimi yapın", "warning");
-      return;
-    }
     setSelectedPersonelName(personelName);
     setSelectedDay(day);
     setDialogOpen(true);
@@ -231,47 +234,66 @@ const Puantaj = () => {
   // Puantaj kaydetme işleyicisi
   const handleSavePuantaj = async (status) => {
     try {
-      console.log("Kaydedilecek durum:", status); // Debug log
+      if (!selectedSantiye) {
+        showSnackbar("Lütfen şantiye seçimi yapın", "warning");
+        return;
+      }
 
       const selectedSantiyeInfo = santiyeler.find(s => s.id === selectedSantiye);
       const docId = `${selectedYear}-${selectedMonth + 1}-${selectedSantiyeInfo.ad}`;
 
-      console.log("Seçili şantiye:", selectedSantiyeInfo); // Debug log
-      console.log("Döküman ID:", docId); // Debug log
-
-      // Önceki kayıtları temizle
-      for (const santiye of santiyeler) {
-        const santiyeDocId = `${selectedYear}-${selectedMonth + 1}-${santiye.ad}`;
-        const puantajDoc = await getDoc(doc(db, "puantaj", santiyeDocId));
-        
-        if (puantajDoc.exists()) {
-          const santiyeData = puantajDoc.data();
-          if (santiyeData[selectedPersonelName]?.[selectedDay]) {
-            const updatedData = { ...santiyeData };
-            delete updatedData[selectedPersonelName][selectedDay];
-            await setDoc(doc(db, "puantaj", santiyeDocId), updatedData);
+      // Temizle seçeneği için tüm şantiyelerden veriyi sil
+      if (status === 'temizle') {
+        for (const santiye of santiyeler) {
+          const santiyeDocId = `${selectedYear}-${selectedMonth + 1}-${santiye.ad}`;
+          const puantajDoc = await getDoc(doc(db, "puantaj", santiyeDocId));
+          
+          if (puantajDoc.exists()) {
+            const santiyeData = puantajDoc.data();
+            if (santiyeData[selectedPersonelName]?.[selectedDay]) {
+              const updatedData = { ...santiyeData };
+              delete updatedData[selectedPersonelName][selectedDay];
+              await setDoc(doc(db, "puantaj", santiyeDocId), updatedData);
+            }
           }
         }
+        setDialogOpen(false);
+        showSnackbar("Puantaj temizlendi", "success");
+      } else {
+        // Diğer durumlar için normal kayıt işlemi
+        // Önceki kayıtları temizle
+        for (const santiye of santiyeler) {
+          const santiyeDocId = `${selectedYear}-${selectedMonth + 1}-${santiye.ad}`;
+          const puantajDoc = await getDoc(doc(db, "puantaj", santiyeDocId));
+          
+          if (puantajDoc.exists()) {
+            const santiyeData = puantajDoc.data();
+            if (santiyeData[selectedPersonelName]?.[selectedDay]) {
+              const updatedData = { ...santiyeData };
+              delete updatedData[selectedPersonelName][selectedDay];
+              await setDoc(doc(db, "puantaj", santiyeDocId), updatedData);
+            }
+          }
+        }
+
+        // Yeni veriyi kaydet
+        const puantajDoc = await getDoc(doc(db, "puantaj", docId));
+        const currentSantiyeData = puantajDoc.exists() ? puantajDoc.data() : {};
+        
+        const updatedSantiyeData = { ...currentSantiyeData };
+        if (!updatedSantiyeData[selectedPersonelName]) {
+          updatedSantiyeData[selectedPersonelName] = {};
+        }
+
+        updatedSantiyeData[selectedPersonelName][selectedDay] = {
+          status: status,
+          santiyeKod: selectedSantiyeInfo.kod
+        };
+
+        await setDoc(doc(db, "puantaj", docId), updatedSantiyeData);
+        setDialogOpen(false);
+        showSnackbar("Puantaj kaydedildi", "success");
       }
-
-      // Yeni veriyi kaydet
-      const puantajDoc = await getDoc(doc(db, "puantaj", docId));
-      const currentSantiyeData = puantajDoc.exists() ? puantajDoc.data() : {};
-      
-      const updatedSantiyeData = { ...currentSantiyeData };
-      if (!updatedSantiyeData[selectedPersonelName]) {
-        updatedSantiyeData[selectedPersonelName] = {};
-      }
-
-      updatedSantiyeData[selectedPersonelName][selectedDay] = {
-        status: status,
-        santiyeKod: selectedSantiyeInfo.kod
-      };
-
-      console.log("Kaydedilecek veri:", updatedSantiyeData); // Debug log
-
-      await setDoc(doc(db, "puantaj", docId), updatedSantiyeData);
-      showSnackbar("Puantaj kaydedildi", "success");
 
       // Tüm puantaj verilerini yeniden yükle
       const allData = {};
@@ -296,8 +318,6 @@ const Puantaj = () => {
       }
       setAllPuantajData(allData);
 
-      console.log("Güncellenmiş tüm veriler:", allData); // Debug log
-
     } catch (error) {
       console.error("Puantaj güncellenirken hata:", error);
       showSnackbar("Puantaj güncellenirken hata oluştu", "error");
@@ -309,7 +329,7 @@ const Puantaj = () => {
     const data = allPuantajData[personelName]?.[day];
     const status = data?.status || "bos";
     const santiyeKod = data?.santiyeKod || "";
-    const durum = PUANTAJ_DURUMLARI[status];
+    const durum = PUANTAJ_DURUMLARI[status] || PUANTAJ_DURUMLARI.bos;
 
     return (
       <td
@@ -322,23 +342,42 @@ const Puantaj = () => {
           backgroundColor: isDarkMode && status !== 'bos' ? durum.buttonColor : undefined
         }}
       >
-        {status === "bos" ? "" : santiyeKod}
+        {santiyeKod}
       </td>
     );
   };
 
   const calculateTotal = (personelName) => {
-    return Object.values(allPuantajData[personelName] || {})
-      .reduce((total, { status }) => 
-        total + (
-          status === "tam" ? 1 :
-          status === "yarim" ? 0.5 :
-          status === "mesai" ? 1.5 :
-          status === "pazar" ? 1 :
-          status === "resmiTatil" ? 1 :
-          0
-        ), 0
-      );
+    return Object.entries(allPuantajData[personelName] || {})
+      .reduce((total, [day, { status }]) => {
+        // Pazar günü kontrolü
+        const isPazar = isPazarGunu(selectedYear, selectedMonth, parseInt(day));
+        
+        switch (status) {
+          case "tam":
+            return total + 1;
+          case "yarim":
+            return total + 0.5;
+          case "mesai":
+            // Eğer pazar günü mesai yapıldıysa 2.5 (1 + 1.5) puan
+            if (isPazar) {
+              return total + 2.5;
+            }
+            return total + 1.5;
+          case "pazar":
+            return total + 1;
+          case "resmiTatil":
+            return total + 1;
+          case "izinli":
+            return total + 0;
+          case "raporlu":
+            return total + 0;
+          case "bos":
+          case "temizle":
+          default:
+            return total + 0;
+        }
+      }, 0);
   };
 
   // PDF kaydetme fonksiyonu

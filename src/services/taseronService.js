@@ -35,11 +35,12 @@ class TaseronService {
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         if (data.firma?.trim()) {
+          // Normalize firma adı (boşlukları alt tire ile değiştir)
           const normalizedFirma = data.firma.trim().replace(/\s+/g, '_').toUpperCase();
           if (!firmaGruplari[normalizedFirma]) {
             firmaGruplari[normalizedFirma] = {
-              id: normalizedFirma,
-              ad: data.firma,
+              id: normalizedFirma,  // ID olarak normalize edilmiş adı kullan
+              ad: normalizedFirma,  // Gösterim için de normalize edilmiş adı kullan
               personeller: []
             };
           }

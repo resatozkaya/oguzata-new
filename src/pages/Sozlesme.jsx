@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { sozlesmeService } from '../services/sozlesmeService';
+import { createSozlesme, updateSozlesme, deleteSozlesme, getSozlesmeler, getSozlesme } from '../services/sozlesmeService';
 import { useParams } from 'react-router-dom';
 import {
     Button,
@@ -10,14 +10,10 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
     Box,
     Typography,
-    Grid,
+    Modal,
+    TextField,
     IconButton
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
@@ -55,15 +51,13 @@ const Sozlesme = () => {
     });
 
     useEffect(() => {
-        if (projeId) {
-            loadSozlesmeler();
-        }
-    }, [projeId]);
+        loadSozlesmeler();
+    }, []);
 
     const loadSozlesmeler = async () => {
         try {
             setLoading(true);
-            const data = await sozlesmeService.getProjeSozlesmeleri(projeId);
+            const data = await getSozlesmeler();
             setSozlesmeler(data);
         } catch (error) {
             console.error('Sözleşmeler yüklenirken hata:', error);
@@ -74,9 +68,8 @@ const Sozlesme = () => {
 
     const handleSozlesmeSelect = async (sozlesmeId) => {
         try {
-            const detay = await sozlesmeService.getSozlesmeDetails(sozlesmeId);
-            setSelectedSozlesme(detay.sozlesme);
-            setBirimFiyatlar(detay.birimFiyatlar);
+            const sozlesme = await getSozlesme(sozlesmeId);
+            setSelectedSozlesme(sozlesme);
         } catch (error) {
             console.error('Sözleşme detayları alınırken hata:', error);
         }
@@ -84,10 +77,7 @@ const Sozlesme = () => {
 
     const handleSozlesmeSubmit = async () => {
         try {
-            await sozlesmeService.createSozlesme({
-                ...formData,
-                projeId
-            });
+            await createSozlesme(formData);
             setModalOpen(false);
             loadSozlesmeler();
             setFormData({
@@ -107,48 +97,20 @@ const Sozlesme = () => {
         }
     };
 
-    const handleBirimFiyatSubmit = async () => {
-        try {
-            await sozlesmeService.createBirimFiyat({
-                ...birimFiyatData,
-                sozlesmeId: selectedSozlesme.id
-            });
-            setBirimFiyatModalOpen(false);
-            handleSozlesmeSelect(selectedSozlesme.id);
-            setBirimFiyatData({
-                pozNo: '',
-                pozAdi: '',
-                birim: '',
-                birimFiyat: '',
-                aciklama: ''
-            });
-        } catch (error) {
-            console.error('Birim fiyat eklenirken hata:', error);
-        }
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
-    const columns = [
-        { field: 'sozlesmeNo', headerName: 'Sözleşme No' },
-        { field: 'isinAdi', headerName: 'İşin Adı' },
-        { field: 'sozlesmeBedeli', headerName: 'Sözleşme Bedeli' },
-        { 
-            field: 'baslangicTarihi', 
-            headerName: 'Başlangıç Tarihi',
-            render: (date) => date ? new Date(date.seconds * 1000).toLocaleDateString() : '-'
-        },
-        {
-            field: 'actions',
-            headerName: 'İşlemler',
-            render: (row) => (
-                <IconButton
-                    onClick={() => handleSozlesmeSelect(row.id)}
-                    size="small"
-                >
-                    <EditIcon />
-                </IconButton>
-            )
-        }
-    ];
+    const handleDateChange = (date) => {
+        setFormData(prev => ({
+            ...prev,
+            baslangicTarihi: date
+        }));
+    };
 
     return (
         <Box sx={{ width: '100%', p: 3 }}>
@@ -170,236 +132,158 @@ const Sozlesme = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            {columns.map((column) => (
-                                <TableCell key={column.field}>
-                                    {column.headerName}
-                                </TableCell>
-                            ))}
+                            <TableCell>Sözleşme No</TableCell>
+                            <TableCell>İşin Adı</TableCell>
+                            <TableCell>Sözleşme Bedeli</TableCell>
+                            <TableCell>Başlangıç Tarihi</TableCell>
+                            <TableCell>İşlemler</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {sozlesmeler.map((row) => (
-                            <TableRow key={row.id}>
-                                {columns.map((column) => (
-                                    <TableCell key={column.field}>
-                                        {column.render ? column.render(row) : row[column.field]}
-                                    </TableCell>
-                                ))}
+                        {sozlesmeler.map((sozlesme) => (
+                            <TableRow key={sozlesme.id}>
+                                <TableCell>{sozlesme.sozlesmeNo}</TableCell>
+                                <TableCell>{sozlesme.isinAdi}</TableCell>
+                                <TableCell>{sozlesme.sozlesmeBedeli}</TableCell>
+                                <TableCell>
+                                    {sozlesme.baslangicTarihi?.toDate().toLocaleDateString('tr-TR')}
+                                </TableCell>
+                                <TableCell>
+                                    <IconButton
+                                        onClick={() => handleSozlesmeSelect(sozlesme.id)}
+                                        size="small"
+                                    >
+                                        <EditIcon />
+                                    </IconButton>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </TableContainer>
 
-            {selectedSozlesme && (
-                <Box sx={{ mt: 4 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">
-                            Birim Fiyatlar
-                        </Typography>
+            <Modal
+                open={modalOpen}
+                onClose={() => setModalOpen(false)}
+                aria-labelledby="sozlesme-modal"
+            >
+                <Box sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 400,
+                    bgcolor: 'background.paper',
+                    boxShadow: 24,
+                    p: 4,
+                    maxHeight: '90vh',
+                    overflow: 'auto'
+                }}>
+                    <Typography variant="h6" component="h2" gutterBottom>
+                        Yeni Sözleşme
+                    </Typography>
+                    <Box component="form" sx={{ mt: 2 }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Sözleşme No"
+                            name="sozlesmeNo"
+                            value={formData.sozlesmeNo}
+                            onChange={handleInputChange}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="İşin Adı"
+                            name="isinAdi"
+                            value={formData.isinAdi}
+                            onChange={handleInputChange}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="İşin Tanımı"
+                            name="isinTanimi"
+                            value={formData.isinTanimi}
+                            onChange={handleInputChange}
+                            multiline
+                            rows={3}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Sözleşme Bedeli"
+                            name="sozlesmeBedeli"
+                            value={formData.sozlesmeBedeli}
+                            onChange={handleInputChange}
+                            type="number"
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="İş Süresi (Gün)"
+                            name="isSuresi"
+                            value={formData.isSuresi}
+                            onChange={handleInputChange}
+                            type="number"
+                        />
+                        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
+                            <DatePicker
+                                label="Başlangıç Tarihi"
+                                value={formData.baslangicTarihi}
+                                onChange={handleDateChange}
+                                renderInput={(params) => (
+                                    <TextField {...params} fullWidth margin="normal" />
+                                )}
+                            />
+                        </LocalizationProvider>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="İşveren Adı"
+                            name="isverenAdi"
+                            value={formData.isverenAdi}
+                            onChange={handleInputChange}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="İşveren Adres"
+                            name="isverenAdres"
+                            value={formData.isverenAdres}
+                            onChange={handleInputChange}
+                            multiline
+                            rows={2}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Yüklenici Adı"
+                            name="yukleniciAdi"
+                            value={formData.yukleniciAdi}
+                            onChange={handleInputChange}
+                        />
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Yüklenici Adres"
+                            name="yukleniciAdres"
+                            value={formData.yukleniciAdres}
+                            onChange={handleInputChange}
+                            multiline
+                            rows={2}
+                        />
                         <Button
+                            fullWidth
                             variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={() => setBirimFiyatModalOpen(true)}
+                            onClick={handleSozlesmeSubmit}
+                            sx={{ mt: 3 }}
                         >
-                            Yeni Birim Fiyat
+                            Kaydet
                         </Button>
                     </Box>
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Poz No</TableCell>
-                                    <TableCell>Poz Adı</TableCell>
-                                    <TableCell>Birim</TableCell>
-                                    <TableCell>Birim Fiyat</TableCell>
-                                    <TableCell>Açıklama</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {birimFiyatlar.map((birimFiyat) => (
-                                    <TableRow key={birimFiyat.id}>
-                                        <TableCell>{birimFiyat.pozNo}</TableCell>
-                                        <TableCell>{birimFiyat.pozAdi}</TableCell>
-                                        <TableCell>{birimFiyat.birim}</TableCell>
-                                        <TableCell>{birimFiyat.birimFiyat}</TableCell>
-                                        <TableCell>{birimFiyat.aciklama}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
                 </Box>
-            )}
-
-            {/* Sözleşme Ekleme Modal */}
-            <Dialog 
-                open={modalOpen} 
-                onClose={() => setModalOpen(false)}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle>Yeni Sözleşme</DialogTitle>
-                <DialogContent>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Sözleşme No"
-                                value={formData.sozlesmeNo}
-                                onChange={(e) => setFormData({ ...formData, sozlesmeNo: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
-                                <DatePicker
-                                    label="Başlangıç Tarihi"
-                                    value={formData.baslangicTarihi}
-                                    onChange={(newValue) => setFormData({ ...formData, baslangicTarihi: newValue })}
-                                    renderInput={(params) => <TextField {...params} fullWidth />}
-                                />
-                            </LocalizationProvider>
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="İşin Adı"
-                                value={formData.isinAdi}
-                                onChange={(e) => setFormData({ ...formData, isinAdi: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="İşin Tanımı"
-                                value={formData.isinTanimi}
-                                onChange={(e) => setFormData({ ...formData, isinTanimi: e.target.value })}
-                                fullWidth
-                                multiline
-                                rows={3}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Sözleşme Bedeli"
-                                value={formData.sozlesmeBedeli}
-                                onChange={(e) => setFormData({ ...formData, sozlesmeBedeli: e.target.value })}
-                                fullWidth
-                                type="number"
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="İş Süresi (Gün)"
-                                value={formData.isSuresi}
-                                onChange={(e) => setFormData({ ...formData, isSuresi: e.target.value })}
-                                fullWidth
-                                type="number"
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="İşveren Adı"
-                                value={formData.isverenAdi}
-                                onChange={(e) => setFormData({ ...formData, isverenAdi: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="İşveren Adres"
-                                value={formData.isverenAdres}
-                                onChange={(e) => setFormData({ ...formData, isverenAdres: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Yüklenici Adı"
-                                value={formData.yukleniciAdi}
-                                onChange={(e) => setFormData({ ...formData, yukleniciAdi: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Yüklenici Adres"
-                                value={formData.yukleniciAdres}
-                                onChange={(e) => setFormData({ ...formData, yukleniciAdres: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                    </Grid>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setModalOpen(false)}>İptal</Button>
-                    <Button onClick={handleSozlesmeSubmit} variant="contained">
-                        Kaydet
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Birim Fiyat Ekleme Modal */}
-            <Dialog 
-                open={birimFiyatModalOpen} 
-                onClose={() => setBirimFiyatModalOpen(false)}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Yeni Birim Fiyat</DialogTitle>
-                <DialogContent>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Poz No"
-                                value={birimFiyatData.pozNo}
-                                onChange={(e) => setBirimFiyatData({ ...birimFiyatData, pozNo: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                label="Birim"
-                                value={birimFiyatData.birim}
-                                onChange={(e) => setBirimFiyatData({ ...birimFiyatData, birim: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Poz Adı"
-                                value={birimFiyatData.pozAdi}
-                                onChange={(e) => setBirimFiyatData({ ...birimFiyatData, pozAdi: e.target.value })}
-                                fullWidth
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Birim Fiyat"
-                                value={birimFiyatData.birimFiyat}
-                                onChange={(e) => setBirimFiyatData({ ...birimFiyatData, birimFiyat: e.target.value })}
-                                fullWidth
-                                type="number"
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Açıklama"
-                                value={birimFiyatData.aciklama}
-                                onChange={(e) => setBirimFiyatData({ ...birimFiyatData, aciklama: e.target.value })}
-                                fullWidth
-                                multiline
-                                rows={2}
-                            />
-                        </Grid>
-                    </Grid>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setBirimFiyatModalOpen(false)}>İptal</Button>
-                    <Button onClick={handleBirimFiyatSubmit} variant="contained">
-                        Kaydet
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            </Modal>
         </Box>
     );
 };

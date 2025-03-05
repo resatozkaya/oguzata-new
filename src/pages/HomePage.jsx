@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Grid,
@@ -15,7 +15,8 @@ import {
   Button,
   LinearProgress,
   DialogTitle,
-  DialogActions
+  DialogActions,
+  useMediaQuery
 } from '@mui/material';
 import { useNavigate, Link } from 'react-router-dom';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -35,7 +36,9 @@ import {
   Engineering as EngineeringIcon,
   Timeline as TimelineIcon,
   Circle as CircleIcon,
-  Warehouse as WarehouseIcon
+  Warehouse as WarehouseIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
 import {
   collection, getDocs, query, orderBy, doc, getDoc
@@ -92,73 +95,41 @@ const ImageModal = ({ open, handleClose, imageUrl }) => {
   );
 };
 
-const StatCard = ({ label, value, icon, trend, trendUp, subtext, onClick }) => {
-  const { sidebarColor, isDarkMode } = useTheme();
+const StatCard = ({ title, value, icon: Icon, color, onClick }) => {
+  const { isDarkMode, sidebarColor } = useTheme();
   
   return (
     <Paper
-      elevation={0}
+      elevation={3}
+      onClick={onClick}
       sx={{
-        p: 2,
-        height: '100%',
-        bgcolor: isDarkMode ? 'background.paper' : '#fff',
+        p: 3,
+        height: '200px',
+        width: '200px',
+        borderRadius: '50%',
         display: 'flex',
         flexDirection: 'column',
-        position: 'relative',
+        alignItems: 'center',
+        justifyContent: 'center',
         cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.2s',
+        '&:hover': onClick ? {
+          transform: 'scale(1.05)',
+          bgcolor: isDarkMode ? alpha(sidebarColor, 0.1) : alpha(sidebarColor, 0.05)
+        } : {},
+        bgcolor: isDarkMode ? 'background.paper' : '#fff',
+        color: isDarkMode ? 'text.primary' : 'text.primary',
         border: 1,
         borderColor: isDarkMode ? 'background.paper' : alpha(sidebarColor, 0.1),
-        '&:hover': {
-          bgcolor: isDarkMode ? alpha(sidebarColor, 0.1) : alpha(sidebarColor, 0.05)
-        }
       }}
-      onClick={onClick}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-        <Box sx={{ 
-          p: 1, 
-          borderRadius: 1, 
-          bgcolor: isDarkMode ? alpha(sidebarColor, 0.2) : alpha(sidebarColor, 0.1),
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          {icon}
-        </Box>
-        {trend && (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            bgcolor: trendUp ? sidebarColor : 'error.main',
-            color: '#fff',
-            typography: 'caption'
-          }}>
-            {trendUp ? <ArrowUpwardIcon sx={{ fontSize: 14, mr: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, mr: 0.5 }} />}
-            {trend}
-          </Box>
-        )}
-      </Box>
-      
-      {value && (
-        <Typography variant="h4" sx={{ mb: 1, fontWeight: 'medium' }}>
-          {value}
-        </Typography>
-      )}
-      
-      {label && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-          {label}
-        </Typography>
-      )}
-
-      {subtext && (
-        <Typography variant="h5" color="text.primary" sx={{ mt: 'auto', textAlign: 'center' }}>
-          {subtext}
-        </Typography>
-      )}
+      <Icon sx={{ fontSize: 40, mb: 1, color: sidebarColor }} />
+      <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+        {value}
+      </Typography>
+      <Typography variant="subtitle1" sx={{ textAlign: 'center' }}>
+        {title}
+      </Typography>
     </Paper>
   );
 };
@@ -182,6 +153,22 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   };
 
+  // Durum renklerini belirle
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'aktif':
+        return '#4CAF50'; // yeşil
+      case 'tamamlandi':
+        return '#2196F3'; // mavi
+      case 'iptal':
+        return '#F44336'; // kırmızı
+      case 'beklemede':
+        return '#FF9800'; // turuncu
+      default:
+        return '#757575'; // varsayılan gri
+    }
+  };
+
   return (
     <Card className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-white'} shadow-lg hover:shadow-xl transition-all duration-300`}>
       {/* Şantiye Başlık Kısmı - Tema Rengine Uygun Gradient */}
@@ -198,7 +185,6 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
             {santiye.ad}
           </Typography>
           <IconButton
-            onClick={() => setOpenImage(true)}
             sx={{
               width: 56,
               height: 56,
@@ -217,6 +203,12 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
                 boxShadow: isDarkMode ? '0 0 10px rgba(0,0,0,0.3)' : '0 0 10px rgba(255,255,255,0.3)'
               }
             }}
+            onMouseDown={(e) => {
+              if (e.button === 0) { // Sol tıklama
+                e.stopPropagation();
+                setOpenImage(true);
+              }
+            }}
           >
             <img 
               src={santiye.resimUrl || defaultLogo} 
@@ -231,39 +223,46 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
           <Dialog
             open={openImage}
             onClose={() => setOpenImage(false)}
-            maxWidth="md"
-            fullWidth
+            maxWidth={false}
+            PaperProps={{
+              sx: {
+                backgroundColor: 'transparent',
+                boxShadow: 'none',
+                overflow: 'hidden',
+                maxWidth: 'none',
+                maxHeight: 'none',
+                width: '100vw',
+                height: '100vh',
+                margin: 0
+              }
+            }}
           >
-            <DialogTitle sx={{ 
-              background: isDarkMode 
-                ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -40)}80 0%, ${adjustColor(sidebarColor, -60)}80 100%)`
-                : getGradient(),
-              color: 'white'
-            }}>
-              {santiye.ad}
-            </DialogTitle>
-            <DialogContent>
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                cursor: 'pointer'
+              }}
+              onClick={() => setOpenImage(false)}
+            >
               <img
                 src={santiye.resimUrl || defaultLogo}
                 alt={santiye.ad}
                 style={{
-                  width: '100%',
-                  height: 'auto',
-                  maxHeight: '80vh',
-                  objectFit: 'contain',
-                  marginTop: '16px'
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain'
                 }}
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = defaultLogo;
                 }}
               />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setOpenImage(false)} sx={{ color: sidebarColor }}>
-                Kapat
-              </Button>
-            </DialogActions>
+            </Box>
           </Dialog>
         </Box>
       </Box>
@@ -403,10 +402,12 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
               size="small"
               className="font-medium"
               sx={{
-                background: isDarkMode
-                  ? `linear-gradient(90deg, ${adjustColor(sidebarColor, -20)}99 0%, ${adjustColor(sidebarColor, -40)}99 100%)`
-                  : getGradient(),
-                color: 'white'
+                background: getStatusColor(santiye.durum),
+                color: 'white',
+                fontWeight: 'bold',
+                '& .MuiChip-label': {
+                  px: 2
+                }
               }}
             />
           </Box>
@@ -424,11 +425,96 @@ const HomePage = () => {
     maasli: 0,
     yevmiye: 0,
     total: 0,
-    santiyePersonel: {} // Her şantiye için personel sayısı
+    santiyePersonel: {}
   });
   const [bugunCalisanlar, setBugunCalisanlar] = useState({});
   const { sidebarColor } = useTheme();
   const navigate = useNavigate();
+  const scrollContainerRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  // Mouse sürükleme işlemleri
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  // Touch olayları için
+  const handleTouchStart = (e) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    const x = e.touches[0].pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  // Scroll pozisyonunu kontrol et
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(Math.ceil(scrollLeft) < scrollWidth - clientWidth - 5);
+    }
+  };
+
+  // Scroll event listener ekle
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScrollPosition);
+      checkScrollPosition();
+      window.addEventListener('resize', checkScrollPosition);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', checkScrollPosition);
+        window.removeEventListener('resize', checkScrollPosition);
+      }
+    };
+  }, []);
+
+  // Kaydırma işleyicileri
+  const handleScrollLeft = () => {
+    if (scrollContainerRef.current) {
+      const newScrollLeft = scrollContainerRef.current.scrollLeft - 400;
+      scrollContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (scrollContainerRef.current) {
+      const newScrollLeft = scrollContainerRef.current.scrollLeft + 400;
+      scrollContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -611,21 +697,21 @@ const HomePage = () => {
         // İstatistik kartları
         const statsData = [
           {
+            title: "Şantiye",
             value: santiyelerData.length,
-            label: "Şantiye",
-            icon: <BusinessIcon sx={{ fontSize: 24, color: sidebarColor }} />,
+            icon: BusinessIcon,
             onClick: () => navigate('/santiye')
           },
           {
+            title: "Personel",
             value: totalPersonel,
-            label: "Personel",
-            icon: <GroupIcon sx={{ fontSize: 24, color: sidebarColor }} />,
+            icon: GroupIcon,
             onClick: () => navigate('/personel')
           },
           {
+            title: "Depo",
             value: depoData.length,
-            label: "Depo",
-            icon: <WarehouseIcon sx={{ fontSize: 24, color: sidebarColor }} />,
+            icon: WarehouseIcon,
             onClick: () => navigate('/depo')
           }
         ];
@@ -663,13 +749,83 @@ const HomePage = () => {
         </Grid>
       </Box>
 
-      <Grid container spacing={3}>
-        {santiyeler.map((santiye) => (
-          <Grid item xs={12} sm={6} md={3} key={santiye.id}>
-            <ProjectCard santiye={santiye} bugunCalisanlar={bugunCalisanlar} />
-          </Grid>
-        ))}
-      </Grid>
+      <Box sx={{ position: 'relative', px: 3 }}>
+        <Box
+          ref={scrollContainerRef}
+          sx={{
+            display: 'flex',
+            overflowX: 'auto',
+            scrollBehavior: 'smooth',
+            '&::-webkit-scrollbar': {
+              display: 'none'
+            },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+            gap: 2,
+            py: 2,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none'
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleMouseUp}
+          onTouchMove={handleTouchMove}
+        >
+          {santiyeler.map((santiye) => (
+            <Box 
+              key={santiye.id} 
+              sx={{ 
+                minWidth: { xs: '300px', sm: '350px', md: '400px' },
+                flexShrink: 0,
+                pointerEvents: isDragging ? 'none' : 'auto'
+              }}
+            >
+              <ProjectCard santiye={santiye} bugunCalisanlar={bugunCalisanlar} />
+            </Box>
+          ))}
+        </Box>
+        
+        <IconButton
+          onClick={handleScrollLeft}
+          sx={{
+            position: 'absolute',
+            left: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            bgcolor: 'background.paper',
+            boxShadow: 3,
+            zIndex: 2,
+            opacity: canScrollLeft ? 1 : 0,
+            visibility: canScrollLeft ? 'visible' : 'hidden',
+            transition: 'all 0.2s',
+            '&:hover': { bgcolor: 'background.paper' }
+          }}
+        >
+          <ChevronLeftIcon />
+        </IconButton>
+        
+        <IconButton
+          onClick={handleScrollRight}
+          sx={{
+            position: 'absolute',
+            right: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            bgcolor: 'background.paper',
+            boxShadow: 3,
+            zIndex: 2,
+            opacity: canScrollRight ? 1 : 0,
+            visibility: canScrollRight ? 'visible' : 'hidden',
+            transition: 'all 0.2s',
+            '&:hover': { bgcolor: 'background.paper' }
+          }}
+        >
+          <ChevronRightIcon />
+        </IconButton>
+      </Box>
     </Box>
   );
 };

@@ -77,7 +77,7 @@ const PersonelKayit = () => {
   // Eğer id varsa, personel bilgilerini getir
   useEffect(() => {
     const loadPersonnel = async () => {
-      if (id) {
+      if (id && id !== 'yeni') { // Sadece id varsa ve 'yeni' değilse yükle
         try {
           setLoading(true);
           const personnel = await personnelService.getPersonnelById(id);
@@ -262,7 +262,7 @@ const PersonelKayit = () => {
       // Önizleme URL'ini formdan çıkar
       const { fotoUrl, ...dataToSave } = formData;
 
-      if (id) {
+      if (id && id !== 'yeni') {
         // Mevcut personeli güncelle
         await personnelService.updatePersonnel(id, {
           ...dataToSave,
@@ -320,6 +320,23 @@ const PersonelKayit = () => {
         )}
 
         <form onSubmit={handleSubmit}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/personel')}
+              variant="outlined"
+            >
+              Geri Dön
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : (id && id !== 'yeni' ? 'Güncelle' : 'Kaydet')}
+            </Button>
+          </Box>
           <Grid container spacing={3}>
             {/* Kişisel Bilgiler */}
             <Grid item xs={12}>
@@ -626,18 +643,6 @@ const PersonelKayit = () => {
               />
             </Grid>
 
-            {/* Kaydet Butonu */}
-            <Grid item xs={12}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                size="large"
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={24} /> : (id ? 'Güncelle' : 'Kaydet')}
-              </Button>
-            </Grid>
           </Grid>
         </form>
       </Paper>

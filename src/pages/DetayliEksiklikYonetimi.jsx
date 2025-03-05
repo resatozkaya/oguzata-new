@@ -190,7 +190,9 @@ export default function DetayliEksiklikYonetimi() {
                 <SelectContent>
                   <SelectItem value="">Tümü</SelectItem>
                   {taseronlar.map((taseron) => (
-                    <SelectItem key={taseron.id} value={taseron.id}>{taseron.ad}</SelectItem>
+                    <SelectItem key={taseron.id} value={taseron.id}>
+                      {taseron.id.replace(/_/g, ' ')}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
