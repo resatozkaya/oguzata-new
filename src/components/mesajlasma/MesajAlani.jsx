@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Paper, IconButton, Tooltip, Link } from '@mui/material';
-import { Download as DownloadIcon } from '@mui/icons-material';
-import MesajGondermeFormu from './MesajGondermeFormu';
-import { useAuth } from '../../contexts/AuthContext';
-import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
-import { db } from '../../firebase';
+import React, { useRef, useEffect } from 'react';
+import { Box, Typography, IconButton, Tooltip, Link } from '@mui/material';
+import { DownloadRounded as DownloadIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 const MesajBalonu = ({ mesaj, benimMi }) => {
+  console.log('Mesaj balonu render ediliyor:', mesaj);
   const tarih = mesaj.timestamp?.toDate();
 
   return (
@@ -16,7 +13,7 @@ const MesajBalonu = ({ mesaj, benimMi }) => {
       sx={{
         display: 'flex',
         flexDirection: benimMi ? 'row-reverse' : 'row',
-        mb: 1,
+        mb: 2, // Boşluk MesajBalonu'na taşındı
         gap: 1
       }}
     >
@@ -84,7 +81,14 @@ const MesajBalonu = ({ mesaj, benimMi }) => {
             )}
           </Box>
         )}
-        <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>
+        <Typography 
+          variant="body1" 
+          sx={{ 
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap',
+            mb: 1
+          }}
+        >
           {mesaj.text}
         </Typography>
         <Typography
@@ -92,7 +96,6 @@ const MesajBalonu = ({ mesaj, benimMi }) => {
           sx={{
             display: 'block',
             textAlign: 'right',
-            mt: 0.5,
             opacity: 0.8,
             fontSize: '0.7rem'
           }}
@@ -104,86 +107,58 @@ const MesajBalonu = ({ mesaj, benimMi }) => {
   );
 };
 
-const MesajAlani = ({ seciliKullanici }) => {
-  const [mesajlar, setMesajlar] = useState([]);
-  const { currentUser } = useAuth();
-  const mesajAlaniRef = useRef(null);
-
-  useEffect(() => {
-    if (!seciliKullanici) return;
-
-    const mesajlarRef = collection(db, 'messages');
-    const q = query(
-      mesajlarRef,
-      where('participants', 'array-contains', currentUser.uid),
-      orderBy('timestamp', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const yeniMesajlar = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(mesaj => 
-          mesaj.participants.includes(seciliKullanici.uid)
-        );
-      setMesajlar(yeniMesajlar);
-    });
-
-    return () => unsubscribe();
-  }, [seciliKullanici, currentUser]);
+const MesajAlani = ({ mesajlar, currentUser }) => {
+  const mesajAlaniRef = useRef();
 
   useEffect(() => {
     if (mesajAlaniRef.current) {
-      mesajAlaniRef.current.scrollTop = mesajAlaniRef.current.scrollHeight;
+      setTimeout(() => {
+        mesajAlaniRef.current.scrollTop = mesajAlaniRef.current.scrollHeight;
+      }, 100);
     }
   }, [mesajlar]);
 
-  if (!seciliKullanici) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100%' 
-      }}>
-        <Typography variant="h6" color="textSecondary">
-          Mesajlaşmak için bir kullanıcı seçin
-        </Typography>
-      </Box>
-    );
-  }
+  useEffect(() => {
+    if (mesajAlaniRef.current && mesajlar.length > 0) {
+      setTimeout(() => {
+        mesajAlaniRef.current.scrollTop = mesajAlaniRef.current.scrollHeight;
+      }, 100);
+    }
+  }, []);
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">
-          {seciliKullanici.displayName}
-        </Typography>
-      </Box>
-
-      <Box 
-        ref={mesajAlaniRef}
-        sx={{ 
-          flexGrow: 1, 
-          overflow: 'auto', 
-          p: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1,
-          bgcolor: '#f8f9fa'
-        }}
-      >
-        {mesajlar.map((mesaj) => (
-          <MesajBalonu
-            key={mesaj.id}
-            mesaj={mesaj}
-            benimMi={mesaj.sender === currentUser.uid}
-          />
-        ))}
-      </Box>
-
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <MesajGondermeFormu alici={seciliKullanici} />
-      </Box>
+    <Box
+      ref={mesajAlaniRef}
+      sx={{
+        flexGrow: 1,
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: '#f8f9fa',
+        height: 'calc(100vh - 240px)',
+        '&::-webkit-scrollbar': {
+          width: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          bgcolor: 'grey.100',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          bgcolor: 'grey.400',
+          borderRadius: '4px',
+          '&:hover': {
+            bgcolor: 'grey.500',
+          },
+        },
+      }}
+    >
+      {mesajlar.map((mesaj) => (
+        <MesajBalonu
+          key={mesaj.id}
+          mesaj={mesaj}
+          benimMi={mesaj.senderId === currentUser.uid}
+        />
+      ))}
     </Box>
   );
 };

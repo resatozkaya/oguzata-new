@@ -443,11 +443,26 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   };
 
   const filtrelenmisEksiklikler = eksiklikler.filter(eksiklik => {
+    // Taşeron filtresi için özel kontrol
+    const taseronKontrol = () => {
+      if (!filtreler.taseron) return true;
+      
+      const secilenTaseron = filtreler.taseron;
+      const kayitliTaseron = eksiklik.taseron || '';
+      
+      // Seçilen ve kayıtlı taşeron adlarını normalize et
+      const normalizeAd = (ad) => ad.toLowerCase().replace(/[_\s]+/g, ' ').trim();
+      
+      const normalSecilenTaseron = normalizeAd(secilenTaseron);
+      const normalKayitliTaseron = normalizeAd(kayitliTaseron);
+      
+      return normalSecilenTaseron === normalKayitliTaseron;
+    };
+
     return (
-      (!filtreler.kategori || eksiklik.kategori === filtreler.kategori) &&
-      (!filtreler.taseron || eksiklik.taseron === filtreler.taseron) &&
       (!filtreler.durum || eksiklik.durum === filtreler.durum) &&
       (!filtreler.oncelik || eksiklik.oncelik === filtreler.oncelik) &&
+      taseronKontrol() &&
       (!filtreler.daire || eksiklik.daire === filtreler.daire)
     );
   });

@@ -23,6 +23,7 @@
     "@reduxjs/toolkit": "^1.9.7",
     "browser-image-compression": "^2.0.2",
     "date-fns": "^2.30.0",
+    "emoji-picker-react": "^4.12.0",
     "firebase": "^10.7.2",
     "html2pdf.js": "^0.10.2",
     "react": "^18.2.0",

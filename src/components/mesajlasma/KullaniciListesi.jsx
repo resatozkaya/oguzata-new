@@ -14,7 +14,7 @@ import {
   InputAdornment
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -100,8 +100,44 @@ const KullaniciListesi = ({ onKullaniciSec, seciliKullanici }) => {
     setFiltreliKullanicilar(filtreliListe);
   }, [aramaMetni, kullanicilar]);
 
+  const renderUserInfo = (kullanici) => {
+    return (
+      <>
+        <Box component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography component="span" variant="subtitle1" sx={{ fontWeight: 500 }}>
+            {kullanici.name} {kullanici.surname}
+          </Typography>
+        </Box>
+        <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            {kullanici.email}
+          </Typography>
+          <Box component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip
+              label={getRoleText(kullanici.role)}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.7rem',
+                bgcolor: getRoleColor(kullanici.role),
+                color: 'white'
+              }}
+            />
+          </Box>
+        </Box>
+      </>
+    );
+  };
+
   return (
-    <Box sx={{ width: '100%', bgcolor: 'background.paper', borderRadius: 1 }}>
+    <Box sx={{ 
+      width: '100%', 
+      bgcolor: 'background.paper', 
+      borderRadius: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%'
+    }}>
       <TextField
         fullWidth
         variant="outlined"
@@ -123,76 +159,73 @@ const KullaniciListesi = ({ onKullaniciSec, seciliKullanici }) => {
           ),
         }}
       />
-      <List sx={{ width: '100%', maxHeight: 'calc(100vh - 250px)', overflowY: 'auto' }}>
-        {filtreliKullanicilar.map((kullanici, index) => (
-          <React.Fragment key={kullanici.id}>
-            <ListItem
-              button
-              selected={seciliKullanici?.id === kullanici.id}
-              onClick={() => onKullaniciSec(kullanici)}
-              sx={{
-                borderRadius: 1,
-                mb: 0.5,
-                '&.Mui-selected': {
-                  bgcolor: 'rgba(25, 118, 210, 0.08)',
-                  '&:hover': {
-                    bgcolor: 'rgba(25, 118, 210, 0.12)',
+      <Box sx={{ 
+        flexGrow: 1,
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#bdbdbd',
+          borderRadius: '4px',
+          '&:hover': {
+            background: '#9e9e9e'
+          }
+        }
+      }}>
+        <List>
+          {filtreliKullanicilar.map((kullanici, index) => (
+            <React.Fragment key={kullanici.id}>
+              <ListItem
+                button
+                selected={seciliKullanici?.id === kullanici.id}
+                onClick={() => onKullaniciSec(kullanici)}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.5,
+                  '&.Mui-selected': {
+                    bgcolor: 'primary.light',
+                    '&:hover': {
+                      bgcolor: 'primary.light',
+                    },
                   },
-                },
-              }}
-            >
-              <ListItemAvatar>
-                <Badge
-                  badgeContent={okunmamisMesajlar[kullanici.id] || 0}
-                  color="error"
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      bgcolor: '#f44336',
-                      color: 'white',
-                    }
-                  }}
-                >
-                  <Avatar
-                    src={kullanici.photoURL || `https://ui-avatars.com/api/?name=${kullanici.name}+${kullanici.surname}&background=1a237e&color=fff`}
-                    alt={kullanici.name}
-                    sx={{ width: 40, height: 40 }}
-                  />
-                </Badge>
-              </ListItemAvatar>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                      {kullanici.name} {kullanici.surname}
-                    </Typography>
-                  </Box>
-                }
-                secondary={
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                      {kullanici.email}
-                    </Typography>
-                    <Chip
-                      label={getRoleText(kullanici.role)}
-                      size="small"
-                      sx={{
-                        height: 20,
-                        fontSize: '0.7rem',
-                        bgcolor: getRoleColor(kullanici.role),
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemAvatar>
+                  <Badge
+                    badgeContent={okunmamisMesajlar[kullanici.id] || 0}
+                    color="error"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        bgcolor: '#f44336',
                         color: 'white',
-                        alignSelf: 'flex-start'
-                      }}
+                      }
+                    }}
+                  >
+                    <Avatar
+                      src={kullanici.photoURL || `https://ui-avatars.com/api/?name=${kullanici.name}+${kullanici.surname}&background=1a237e&color=fff`}
+                      alt={kullanici.name}
+                      sx={{ width: 40, height: 40 }}
                     />
-                  </Box>
-                }
-              />
-            </ListItem>
-            {index < filtreliKullanicilar.length - 1 && (
-              <Divider variant="inset" component="li" />
-            )}
-          </React.Fragment>
-        ))}
-      </List>
+                  </Badge>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={renderUserInfo(kullanici)}
+                />
+              </ListItem>
+              {index < filtreliKullanicilar.length - 1 && (
+                <Divider variant="inset" component="li" />
+              )}
+            </React.Fragment>
+          ))}
+        </List>
+      </Box>
     </Box>
   );
 };

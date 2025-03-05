@@ -19,6 +19,7 @@ import {
   Tooltip,
   Card,
   CardContent,
+  CardActions,
   InputAdornment,
   Dialog,
   DialogTitle,
@@ -30,7 +31,6 @@ import AddIcon from '@mui/icons-material/Add';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SearchIcon from '@mui/icons-material/Search';
 import { useTheme } from '@mui/material/styles';
-import RaporCard from '../components/rapor/RaporCard';
 import RaporForm from '../components/rapor/RaporForm';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
@@ -77,7 +77,13 @@ const GunlukRapor = () => {
     }
 
     if (filterSantiye) {
-      filtered = filtered.filter(rapor => rapor.santiye === filterSantiye);
+      filtered = filtered.filter(rapor => {
+        const santiyeValue = String(filterSantiye).toLowerCase().trim();
+        const santiyeAdi = String(rapor.santiyeAdi || '').toLowerCase().trim();
+        const santiye = String(rapor.santiye || '').toLowerCase().trim();
+        return santiyeAdi === santiyeValue || 
+               (!rapor.santiyeAdi && !santiye.includes('_') && santiye === santiyeValue);
+      });
     }
 
     if (filterFirma) {
@@ -87,8 +93,14 @@ const GunlukRapor = () => {
     if (filterDateStart && filterDateEnd) {
       filtered = filtered.filter(rapor => {
         const raporDate = new Date(rapor.createdAt);
+        raporDate.setHours(0, 0, 0, 0);
+        
         const startDate = new Date(filterDateStart);
+        startDate.setHours(0, 0, 0, 0);
+        
         const endDate = new Date(filterDateEnd);
+        endDate.setHours(23, 59, 59, 999);
+        
         return raporDate >= startDate && raporDate <= endDate;
       });
     }
@@ -96,13 +108,16 @@ const GunlukRapor = () => {
     if (searchText) {
       const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(rapor =>
-        rapor.yapilanIs.toLowerCase().includes(searchLower) ||
-        rapor.personelAdi.toLowerCase().includes(searchLower) ||
-        rapor.santiyeAdi.toLowerCase().includes(searchLower) ||
+        (rapor.yapilanIs || '').toLowerCase().includes(searchLower) ||
+        (rapor.personelAdi || '').toLowerCase().includes(searchLower) ||
+        (rapor.santiyeAdi || rapor.santiye || '').toLowerCase().includes(searchLower) ||
         (rapor.firma || '').toLowerCase().includes(searchLower)
       );
     }
 
+    // Tarihe göre sırala - en yeniden eskiye
+    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
     setFilteredRaporList(filtered);
   }, [raporList, filterPersonel, filterSantiye, filterFirma, filterDateStart, filterDateEnd, searchText]);
 
@@ -158,6 +173,22 @@ const GunlukRapor = () => {
     setFirmaList(firmalar.sort());
   }, [personelList]);
 
+  // Benzersiz şantiye adlarını al
+  const santiyeAdlari = useMemo(() => {
+    const adlar = new Set();
+    raporList.forEach(rapor => {
+      // Öncelikle santiyeAdi'ni kontrol et
+      if (rapor.santiyeAdi && rapor.santiyeAdi.trim()) {
+        adlar.add(rapor.santiyeAdi.trim());
+      }
+      // Eğer santiyeAdi yoksa ve santiye bir ID değilse, santiye'yi kullan
+      else if (rapor.santiye && !rapor.santiye.includes('_') && rapor.santiye.trim()) {
+        adlar.add(rapor.santiye.trim());
+      }
+    });
+    return Array.from(adlar).sort((a, b) => a.localeCompare(b, 'tr'));
+  }, [raporList]);
+
   const fetchRaporlarByDate = async (date) => {
     try {
       const raporlarRef = collection(db, "gunlukRaporlar", date, "raporlar");
@@ -208,12 +239,24 @@ const GunlukRapor = () => {
       const gunlukRaporlarRef = collectionGroup(db, "raporlar");
       const raporlarSnapshot = await getDocs(gunlukRaporlarRef);
 
-      const allRaporlar = raporlarSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const allRaporlar = raporlarSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        // Firestore timestamp'i varsa Date objesine çevir
+        if (data.createdAt && typeof data.createdAt === 'object' && data.createdAt.toDate) {
+          data.createdAt = data.createdAt.toDate();
+        }
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
 
-      allRaporlar.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      // Tarihe göre sırala - en yeniden eskiye
+      allRaporlar.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA;
+      });
 
       setRaporList(allRaporlar);
     } catch (error) {
@@ -274,72 +317,18 @@ const GunlukRapor = () => {
     }
   };
 
-  const handleUpdateRapor = async () => {
-    if (!selectedPersonel || !selectedSantiye || !yapilanIs) { 
-      alert("Lütfen tüm alanları doldurunuz!");
-      return;
-    }
-  
-    try {
-      const secilenPersonel = personelList.find((p) => p.id === selectedPersonel);
-      const tarih = selectedDate || rapor.createdAt;
-  
-      const updatedRapor = {
-        personelId: selectedPersonel,
-        personelAdi: secilenPersonel?.adSoyad || "",
-        statu: personelDetails.statu || "",
-        firma: personelDetails.firma,
-        calismaSekli: personelDetails.calismaSekli,
-        santiye: selectedSantiye,
-        yapilanIs,
-        raporYazan: "Bilinmiyor",
-        updatedAt: new Date(),
-        updatedBy: currentUser.email
-      };
-  
-      const raporRef = doc(db, "gunlukRaporlar", tarih, "raporlar", editRaporId);
-      await updateDoc(raporRef, updatedRapor);
-  
-      setRaporList((prevList) =>
-        prevList.map((rapor) =>
-          rapor.id === editRaporId ? { ...rapor, ...updatedRapor } : rapor
-        )
-      );
-  
-      setEditMode(false);
-      setEditRaporId(null);
-      setSelectedPersonel("");
-      setPersonelDetails({
-        adSoyad: "",
-        statu: "",
-        firma: "",
-        calismaSekli: ""
-      });
-      setSelectedSantiye("");
-      setYapilanIs("");
-  
-      alert("Rapor başarıyla güncellendi!");
-      
-      if (selectedDate) {
-        await fetchRaporlarByDate(selectedDate);
-      } else {
-        await fetchAllRaporlar();
-      }
-    } catch (error) {
-      console.error("Rapor güncelleme hatası:", error);
-      alert("Rapor güncellenirken bir hata oluştu!");
-    }
-  };
-
-  const handleKaydet = async () => {
+  const handleSave = async () => {
     if (!selectedPersonel || !selectedSantiye || !yapilanIs || !selectedDate) {
-      alert("Lütfen tüm alanları doldurunuz!");
+      alert("Lütfen tüm alanları doldurun!");
       return;
     }
   
     try {
       const secilenPersonel = personelList.find((p) => p.id === selectedPersonel);
-      const tarih = selectedDate; 
+      const secilenSantiye = santiyeList.find((s) => s.id === selectedSantiye);
+      
+      const tarih = new Date(selectedDate);
+      tarih.setHours(12, 0, 0, 0); // Saat farkı sorunlarını önlemek için saati 12:00'ye ayarla
   
       const newRapor = {
         personelId: selectedPersonel,
@@ -348,27 +337,84 @@ const GunlukRapor = () => {
         firma: personelDetails.firma,
         calismaSekli: personelDetails.calismaSekli,
         santiye: selectedSantiye,
+        santiyeAdi: secilenSantiye?.ad || selectedSantiye,
         yapilanIs,
         raporYazan: "Bilinmiyor",
-        createdAt: tarih, 
+        createdAt: tarih,
         createdBy: currentUser.email,
         userId: currentUser.id
       };
   
-      await addDoc(collection(db, "gunlukRaporlar", tarih, "raporlar"), newRapor);
-  
-      setRaporList((prev) => [
-        { id: new Date().getTime(), ...newRapor },
-        ...prev,
-      ]);
+      const raporRef = collection(db, "gunlukRaporlar", format(tarih, 'yyyy-MM-dd'), "raporlar");
+      await addDoc(raporRef, newRapor);
   
       setSelectedPersonel("");
       setSelectedSantiye("");
       setYapilanIs("");
+      setPersonelDetails({
+        adSoyad: "",
+        statu: "",
+        firma: "",
+        calismaSekli: ""
+      });
       alert("Rapor başarıyla kaydedildi!");
+      
+      // Yeni raporu ekledikten sonra listeyi güncelle
+      await fetchAllRaporlar();
     } catch (error) {
       console.error("Rapor kaydetme hatası:", error);
       alert("Rapor kaydedilirken bir hata oluştu!");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editRaporId || !selectedPersonel || !selectedSantiye || !yapilanIs) {
+      alert("Lütfen tüm alanları doldurun!");
+      return;
+    }
+  
+    try {
+      const secilenPersonel = personelList.find((p) => p.id === selectedPersonel);
+      const secilenSantiye = santiyeList.find((s) => s.id === selectedSantiye);
+      
+      const tarih = new Date(selectedDate);
+      tarih.setHours(12, 0, 0, 0); // Saat farkı sorunlarını önlemek için saati 12:00'ye ayarla
+  
+      const updatedRapor = {
+        personelId: selectedPersonel,
+        personelAdi: secilenPersonel?.adSoyad || "",
+        statu: personelDetails.statu || "",
+        firma: personelDetails.firma,
+        calismaSekli: personelDetails.calismaSekli,
+        santiye: selectedSantiye,
+        santiyeAdi: secilenSantiye?.ad || selectedSantiye,
+        yapilanIs,
+        raporYazan: "Bilinmiyor",
+        updatedAt: new Date(),
+      };
+  
+      const raporRef = doc(db, "gunlukRaporlar", format(tarih, 'yyyy-MM-dd'), "raporlar", editRaporId);
+      await updateDoc(raporRef, updatedRapor);
+  
+      setEditMode(false);
+      setEditRaporId(null);
+      setSelectedPersonel("");
+      setSelectedSantiye("");
+      setYapilanIs("");
+      setPersonelDetails({
+        adSoyad: "",
+        statu: "",
+        firma: "",
+        calismaSekli: ""
+      });
+  
+      alert("Rapor başarıyla güncellendi!");
+      
+      // Güncellemeden sonra listeyi yenile
+      await fetchAllRaporlar();
+    } catch (error) {
+      console.error("Rapor güncelleme hatası:", error);
+      alert("Rapor güncellenirken bir hata oluştu!");
     }
   };
 
@@ -378,59 +424,38 @@ const GunlukRapor = () => {
     }
   
     try {
-      const tarih = rapor.createdAt; 
-      const raporId = rapor.id; 
-  
-      const raporRef = doc(db, "gunlukRaporlar", tarih, "raporlar", raporId);
-  
-      await deleteDoc(raporRef);
-  
-      setRaporList((prevList) =>
-        prevList.filter((item) => item.id !== raporId)
-      );
-  
-      alert("Rapor başarıyla silindi!");
-  
-      if (selectedDate) {
-        await fetchRaporlarByDate(selectedDate);
+      // Tarih kontrolü ve formatlaması
+      let tarihStr;
+      if (rapor.createdAt) {
+        const tarih = new Date(rapor.createdAt);
+        if (isNaN(tarih.getTime())) {
+          throw new Error('Geçersiz tarih');
+        }
+        tarihStr = format(tarih, 'yyyy-MM-dd');
       } else {
-        await fetchAllRaporlar();
+        throw new Error('Rapor tarihi bulunamadı');
       }
+
+      // Silme işlemi
+      const raporRef = doc(db, "gunlukRaporlar", tarihStr, "raporlar", rapor.id);
+      await deleteDoc(raporRef);
+
+      // UI'dan kaldır
+      setRaporList(prevList => prevList.filter(r => r.id !== rapor.id));
+      
+      alert("Rapor başarıyla silindi!");
     } catch (error) {
-      console.error("Rapor silme hatası:", error.message); 
-      alert("Rapor silinirken bir hata oluştu! Hata: " + error.message);
+      console.error("Rapor silme hatası:", error);
+      alert("Rapor silinirken bir hata oluştu: " + error.message);
     }
   };
 
   const handleExcelExport = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Günlük Raporlar');
+      const worksheet = workbook.addWorksheet('Raporlar');
 
-      // Stil tanımlamaları
-      const headerStyle = {
-        font: { bold: true, color: { argb: 'FFFFFF' } },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '1A237E' } },
-        alignment: { horizontal: 'center', vertical: 'middle' },
-        border: {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      };
-
-      const cellStyle = {
-        border: {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        },
-        alignment: { vertical: 'middle', wrapText: true }
-      };
-
-      // Sütun başlıkları
+      // Başlıkları ayarla
       worksheet.columns = [
         { header: 'Tarih', key: 'tarih', width: 15 },
         { header: 'Personel', key: 'personel', width: 20 },
@@ -439,109 +464,100 @@ const GunlukRapor = () => {
         { header: 'Yapılan İş', key: 'yapilanIs', width: 50 }
       ];
 
-      // Başlık stillerini uygula
-      worksheet.getRow(1).eachCell((cell) => {
-        cell.style = headerStyle;
-        cell.height = 30;
-      });
+      // Filtre bilgilerini ekle
+      worksheet.addRow(['Filtre Bilgileri:']);
+      if (filterPersonel) {
+        const personel = personelList.find(p => p.id === filterPersonel);
+        worksheet.addRow([`Personel: ${personel?.adSoyad || ''}`]);
+      }
+      if (filterSantiye) {
+        worksheet.addRow([`Şantiye: ${filterSantiye}`]);
+      }
+      if (filterFirma) {
+        worksheet.addRow([`Firma: ${filterFirma}`]);
+      }
+      if (filterDateStart && filterDateEnd) {
+        worksheet.addRow([`Tarih Aralığı: ${format(new Date(filterDateStart), 'dd.MM.yyyy')} - ${format(new Date(filterDateEnd), 'dd.MM.yyyy')}`]);
+      }
+      worksheet.addRow([]);
 
-      // Verileri tarihe ve firmaya göre sırala
-      const sortedRaporlar = [...filteredRaporList].sort((a, b) => {
-        // Önce tarihe göre sırala (yeniden eskiye)
-        const dateA = new Date(a.tarih || a.createdAt);
-        const dateB = new Date(b.tarih || b.createdAt);
-        if (dateB - dateA !== 0) return dateB - dateA;
-
-        // Aynı tarihte olanları firmaya göre sırala
-        const firmaA = (a.firma || '').toLowerCase();
-        const firmaB = (b.firma || '').toLowerCase();
-        return firmaA.localeCompare(firmaB);
-      });
-
-      // Gruplandırılmış verileri ekle
-      let currentDate = null;
-      let currentFirma = null;
-
-      sortedRaporlar.forEach((rapor) => {
-        const raporDate = format(new Date(rapor.tarih || rapor.createdAt), 'dd.MM.yyyy');
-        
-        // Yeni tarih başladığında boş satır ekle
-        if (currentDate !== raporDate) {
-          if (currentDate !== null) {
-            worksheet.addRow([]); // Tarihler arası boş satır
-          }
-          currentDate = raporDate;
-          currentFirma = null;
-        }
-
-        // Aynı tarihte farklı firma başladığında hafif boşluk bırak
-        if (currentFirma !== rapor.firma && currentFirma !== null) {
-          const spacerRow = worksheet.addRow([]);
-          spacerRow.height = 10;
-        }
-        currentFirma = rapor.firma;
-
-        const row = worksheet.addRow({
+      // Verileri ekle
+      filteredRaporList.forEach(rapor => {
+        const raporDate = formatDate(rapor.createdAt);
+        worksheet.addRow({
           tarih: raporDate,
           personel: rapor.personelAdi,
-          santiye: rapor.santiye,
+          santiye: rapor.santiyeAdi || rapor.santiye,
           firma: rapor.firma || '-',
           yapilanIs: rapor.yapilanIs
         });
-
-        // Her hücreye stil uygula
-        row.eachCell((cell) => {
-          cell.style = cellStyle;
-        });
-        row.height = 25;
       });
-
-      // Özet bilgiler
-      worksheet.addRow([]);
-      worksheet.addRow([]);
-      
-      const summaryStyle = {
-        font: { bold: true },
-        alignment: { horizontal: 'left' }
-      };
-
-      const summaryRow = worksheet.addRow(['Rapor Özeti']);
-      summaryRow.getCell(1).style = summaryStyle;
-      
-      worksheet.addRow([`Toplam Rapor: ${filteredRaporList.length}`]);
-      worksheet.addRow([`Oluşturulma Tarihi: ${format(new Date(), 'dd.MM.yyyy HH:mm')}`]);
-
-      if (filterPersonel || filterSantiye || filterFirma || filterDateStart || filterDateEnd) {
-        worksheet.addRow(['']);
-        const filterRow = worksheet.addRow(['Uygulanan Filtreler:']);
-        filterRow.getCell(1).style = summaryStyle;
-
-        if (filterPersonel) {
-          const personel = personelList.find(p => p.id === filterPersonel);
-          worksheet.addRow([`Personel: ${personel?.adSoyad || ''}`]);
-        }
-        if (filterSantiye) {
-          const santiye = santiyeList.find(s => s.id === filterSantiye);
-          worksheet.addRow([`Şantiye: ${santiye?.ad || ''}`]);
-        }
-        if (filterFirma) {
-          worksheet.addRow([`Firma: ${filterFirma}`]);
-        }
-        if (filterDateStart && filterDateEnd) {
-          worksheet.addRow([`Tarih Aralığı: ${filterDateStart} - ${filterDateEnd}`]);
-        }
-      }
 
       // Excel dosyasını oluştur ve indir
       const buffer = await workbook.xlsx.writeBuffer();
-      const fileName = `Gunluk_Raporlar_${format(new Date(), 'dd_MM_yyyy')}.xlsx`;
-      saveAs(new Blob([buffer]), fileName);
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Raporlar_${format(new Date(), 'dd.MM.yyyy')}.xlsx`);
 
     } catch (error) {
-      console.error('Excel export hatası:', error);
-      alert('Excel dosyası oluşturulurken bir hata oluştu!');
+      console.error("Excel export hatası:", error);
+      alert("Excel dosyası oluşturulurken bir hata oluştu!");
     }
   };
+
+  // Tarih formatlama yardımcı fonksiyonu
+  const formatDate = (dateValue) => {
+    try {
+      if (!dateValue) return 'Tarih belirtilmemiş';
+      
+      let date;
+      // Firestore Timestamp kontrolü
+      if (dateValue && typeof dateValue === 'object' && dateValue.toDate) {
+        date = dateValue.toDate();
+      } 
+      // String veya Date objesi kontrolü
+      else if (typeof dateValue === 'string' || dateValue instanceof Date) {
+        date = new Date(dateValue);
+      }
+      
+      if (!date || isNaN(date.getTime())) {
+        console.error('Geçersiz tarih değeri:', dateValue);
+        return 'Geçersiz tarih';
+      }
+      
+      // Türkçe ay isimleri
+      const aylar = [
+        'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+        'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      ];
+      
+      return `${date.getDate()} ${aylar[date.getMonth()]} ${date.getFullYear()}`;
+    } catch (error) {
+      console.error('Tarih formatlanırken hata:', error, dateValue);
+      return 'Geçersiz tarih';
+    }
+  };
+
+  // Ay bazlı gruplandırma için yardımcı fonksiyon
+  const groupByMonth = useMemo(() => {
+    const groups = {};
+    filteredRaporList.forEach((rapor) => {
+      try {
+        if (!rapor.createdAt) return;
+        
+        const date = new Date(rapor.createdAt);
+        if (isNaN(date.getTime())) return;
+        
+        const monthYear = format(date, 'MMMM yyyy');
+        if (!groups[monthYear]) {
+          groups[monthYear] = [];
+        }
+        groups[monthYear].push(rapor);
+      } catch (error) {
+        console.error('Rapor gruplandırılırken hata:', error, rapor);
+      }
+    });
+    return groups;
+  }, [filteredRaporList]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -597,13 +613,15 @@ const GunlukRapor = () => {
                 <InputLabel>Şantiye Filtresi</InputLabel>
                 <Select
                   value={filterSantiye}
+                  label="Şantiye"
                   onChange={(e) => setFilterSantiye(e.target.value)}
-                  label="Şantiye Filtresi"
                 >
-                  <MenuItem value="">Tümü</MenuItem>
-                  {santiyeList.map((santiye) => (
-                    <MenuItem key={santiye.id} value={santiye.id}>
-                      {santiye.ad}
+                  <MenuItem value="">
+                    <em>Hepsi</em>
+                  </MenuItem>
+                  {santiyeAdlari.map((ad) => (
+                    <MenuItem key={ad} value={ad}>
+                      {ad}
                     </MenuItem>
                   ))}
                 </Select>
@@ -751,7 +769,7 @@ const GunlukRapor = () => {
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="contained"
-                onClick={editMode ? handleUpdateRapor : handleKaydet}
+                onClick={editMode ? handleUpdate : handleSave}
                 startIcon={<AddIcon />}
               >
                 {editMode ? "Güncelle" : "Kaydet"}
@@ -789,11 +807,47 @@ const GunlukRapor = () => {
       <Grid container spacing={2}>
         {filteredRaporList.map((rapor) => (
           <Grid item xs={12} md={6} key={rapor.id}>
-            <RaporCard
-              rapor={rapor}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <Card sx={{ mb: 2, bgcolor: 'background.paper' }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" component="div">
+                    {rapor.personelAdi}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {formatDate(rapor.createdAt)}
+                  </Typography>
+                </Box>
+
+                <Typography color="text.secondary" gutterBottom>
+                  {rapor.santiyeAdi || rapor.santiye || 'Şantiye belirtilmemiş'}
+                </Typography>
+
+                <Typography variant="body1">
+                  {rapor.yapilanIs}
+                </Typography>
+
+                {rapor.firma && (
+                  <Typography color="text.secondary" sx={{ mt: 1 }}>
+                    Firma: {rapor.firma}
+                  </Typography>
+                )}
+              </CardContent>
+              <CardActions sx={{ justifyContent: 'flex-end' }}>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleEdit(rapor)}
+                >
+                  <EditIcon />
+                </IconButton>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleDelete(rapor)}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
           </Grid>
         ))}
       </Grid>
@@ -812,7 +866,7 @@ const GunlukRapor = () => {
         </DialogTitle>
         <DialogContent>
           <RaporForm
-            onSubmit={editMode ? handleUpdateRapor : handleKaydet}
+            onSubmit={editMode ? handleUpdate : handleSave}
             initialData={editingRapor}
           />
         </DialogContent>
