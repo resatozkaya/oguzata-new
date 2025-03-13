@@ -33,6 +33,7 @@ import PaymentIcon from '@mui/icons-material/Payment';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import AddIcon from '@mui/icons-material/Add';
+import MoneyIcon from '@mui/icons-material/Money';
 
 const drawerWidth = 240;
 
@@ -41,15 +42,23 @@ const menuItems = [
   { text: 'Şantiye Yönetimi', icon: <BusinessIcon />, path: '/santiye' },
   { text: 'Personel Yönetimi', icon: <PersonIcon />, path: '/personel' },
   { text: 'Puantaj', icon: <AccessTimeIcon />, path: '/puantaj' },
-  { text: 'İş Programı', icon: <AssignmentIcon />, path: '/is-programi' },
+  // { text: 'İş Programı', icon: <AssignmentIcon />, path: '/is-programi' },
   { text: 'Depo Yönetimi', icon: <InventoryIcon />, path: '/depo' },
   { text: 'Günlük Rapor', icon: <DescriptionIcon />, path: '/gunluk-rapor' },
-  { text: 'Sözleşme', icon: <DescriptionIcon />, path: '/sozlesme' },
-  {
-    text: 'Hakediş',
-    icon: <AccountBalanceIcon />,
-    path: '/hakedis'
-  },
+  // { 
+  //   text: 'Sözleşme ve Hakediş', 
+  //   icon: <ReceiptIcon />, 
+  //   children: [
+  //     { text: 'Sözleşmeler', icon: <DescriptionIcon />, path: '/sozlesme' },
+  //     { text: 'Yeşil Defter', icon: <AssignmentIcon />, path: '/yesilDefter' },
+  //     { text: 'Ataşman', icon: <TimelineIcon />, path: '/atasman' },
+  //     { text: 'Metraj', icon: <TimelineIcon />, path: '/metraj' },
+  //     { text: 'Kesinti', icon: <MoneyIcon />, path: '/kesinti' },
+  //     { text: 'Hakediş', icon: <AccountBalanceIcon />, path: '/hakedis' },
+  //     { text: 'Birim Fiyatlar', icon: <PaymentIcon />, path: '/birim-fiyatlar' },
+  //     { text: 'Taşeron Yönetimi', icon: <BusinessIcon />, path: '/taseron-yonetimi' }
+  //   ]
+  // },
   {
     text: 'Teslimat Ekip',
     icon: <AccessTimeIcon />,

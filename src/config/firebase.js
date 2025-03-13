@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -18,6 +18,24 @@ const app = initializeApp(firebaseConfig);
 
 // Firestore veritabanını başlat
 const db = getFirestore(app);
+
+// Çevrimdışı veri desteğini etkinleştir
+enableMultiTabIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Çoklu sekme desteği için IndexedDB kullanılamıyor');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Tarayıcınız IndexedDB desteklemiyor');
+    }
+  });
+
+// Firestore ayarlarını yapılandır
+const settings = {
+  cacheSizeBytes: 40 * 1024 * 1024, // 40 MB
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true, // WebSocket sorunlarını çözmek için
+  experimentalAutoDetectLongPolling: true
+};
 
 // Authentication'ı başlat
 const auth = getAuth(app);

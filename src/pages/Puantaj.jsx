@@ -4,7 +4,7 @@ import { db } from "../config/firebase";
 import * as XLSX from 'xlsx';
 import { useNavigate } from "react-router-dom";
 import { Box, CircularProgress, Button, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, Typography, TextField, useTheme } from "@mui/material";
-import { useSnackbar } from "../contexts/SnackbarContext";
+import { enqueueSnackbar } from 'notistack';
 import { useTheme as useCustomTheme } from "../contexts/ThemeContext";
 import html2pdf from 'html2pdf.js';
 
@@ -14,7 +14,6 @@ const Puantaj = () => {
   const { sidebarColor } = useCustomTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const navigate = useNavigate();
-  const { showSnackbar } = useSnackbar();
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 20 }, (_, i) => currentYear + i);
   const months = [
@@ -127,7 +126,7 @@ const Puantaj = () => {
         }
       } catch (error) {
         console.error("Şantiye verileri çekilirken hata:", error);
-        showSnackbar("Şantiye verileri çekilirken hata oluştu", "error");
+        enqueueSnackbar("Şantiye verileri çekilirken hata oluştu", { variant: "error" });
       } finally {
         setLoading(false);
       }
@@ -156,7 +155,7 @@ const Puantaj = () => {
         setFilteredPersonelList(sortedData);
       } catch (error) {
         console.error("Personel verileri çekilirken hata:", error);
-        showSnackbar("Personel verileri çekilirken hata oluştu", "error");
+        enqueueSnackbar("Personel verileri çekilirken hata oluştu", { variant: "error" });
       } finally {
         setLoading(false);
       }
@@ -201,7 +200,7 @@ const Puantaj = () => {
         setAllPuantajData(allData);
       } catch (error) {
         console.error("Puantaj verileri çekilirken hata:", error);
-        showSnackbar("Puantaj verileri çekilirken hata oluştu", "error");
+        enqueueSnackbar("Puantaj verileri çekilirken hata oluştu", { variant: "error" });
       } finally {
         setLoading(false);
       }
@@ -235,7 +234,7 @@ const Puantaj = () => {
   const handleSavePuantaj = async (status) => {
     try {
       if (!selectedSantiye) {
-        showSnackbar("Lütfen şantiye seçimi yapın", "warning");
+        enqueueSnackbar("Lütfen şantiye seçimi yapın", { variant: "warning" });
         return;
       }
 
@@ -258,7 +257,7 @@ const Puantaj = () => {
           }
         }
         setDialogOpen(false);
-        showSnackbar("Puantaj temizlendi", "success");
+        enqueueSnackbar("Puantaj temizlendi", { variant: "success" });
       } else {
         // Diğer durumlar için normal kayıt işlemi
         // Önceki kayıtları temizle
@@ -292,7 +291,7 @@ const Puantaj = () => {
 
         await setDoc(doc(db, "puantaj", docId), updatedSantiyeData);
         setDialogOpen(false);
-        showSnackbar("Puantaj kaydedildi", "success");
+        enqueueSnackbar("Puantaj kaydedildi", { variant: "success" });
       }
 
       // Tüm puantaj verilerini yeniden yükle
@@ -320,7 +319,7 @@ const Puantaj = () => {
 
     } catch (error) {
       console.error("Puantaj güncellenirken hata:", error);
-      showSnackbar("Puantaj güncellenirken hata oluştu", "error");
+      enqueueSnackbar("Puantaj güncellenirken hata oluştu", { variant: "error" });
     }
   };
 
@@ -406,10 +405,10 @@ const Puantaj = () => {
     
     html2pdf().set(opt).from(element).save().then(() => {
       element.classList.remove('printing');
-      showSnackbar('PDF başarıyla kaydedildi', 'success');
+      enqueueSnackbar('PDF başarıyla kaydedildi', { variant: "success" });
     }).catch(err => {
       element.classList.remove('printing');
-      showSnackbar('PDF kaydedilirken bir hata oluştu', 'error');
+      enqueueSnackbar('PDF kaydedilirken bir hata oluştu', { variant: "error" });
     });
   };
 

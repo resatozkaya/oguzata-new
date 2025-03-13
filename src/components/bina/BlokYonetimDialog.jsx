@@ -14,12 +14,11 @@ import {
 } from '@mui/material';
 import { Delete as DeleteIcon, Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
 import { binaService } from '../../services/binaService';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { enqueueSnackbar } from 'notistack';
 
 const BlokYonetimDialog = ({ open, onClose, santiye, onUpdate }) => {
   const [editingBlok, setEditingBlok] = useState(null);
   const [yeniAd, setYeniAd] = useState('');
-  const { showSnackbar } = useSnackbar();
 
   const handleEditClick = (blok) => {
     setEditingBlok(blok);
@@ -29,14 +28,14 @@ const BlokYonetimDialog = ({ open, onClose, santiye, onUpdate }) => {
   const handleSave = async (blok) => {
     try {
       await binaService.blokGuncelle(santiye.id, blok.id, yeniAd);
-      showSnackbar('Blok başarıyla güncellendi', 'success');
+      enqueueSnackbar('Blok başarıyla güncellendi', { variant: 'success' });
       setEditingBlok(null);
       setYeniAd('');
       onClose(); // Dialog'u kapat
       onUpdate(); // Listeyi yenile
     } catch (error) {
       console.error('Blok güncellenirken hata:', error);
-      showSnackbar('Blok güncellenirken hata oluştu: ' + error.message, 'error');
+      enqueueSnackbar('Blok güncellenirken hata oluştu: ' + error.message, { variant: 'error' });
     }
   };
 

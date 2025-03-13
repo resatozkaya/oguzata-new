@@ -12,7 +12,7 @@ import {
   Add as AddIcon,
   GetApp as ExportIcon
 } from '@mui/icons-material';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { enqueueSnackbar } from 'notistack';
 import { useSantiye } from '../../contexts/SantiyeContext';
 import { binaService } from '../../services/binaService';
 import BinaGorunumu from './components/BinaGorunumu';
@@ -34,7 +34,6 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   });
   const [formModalAcik, setFormModalAcik] = useState(false);
   const [seciliEksiklik, setSeciliEksiklik] = useState(null);
-  const { showSnackbar } = useSnackbar();
   const { seciliSantiye, seciliBlok, setSeciliSantiye, setSeciliBlok } = useSantiye(); 
   const [seciliDaire, setSeciliDaire] = useState(null);
   const [taseronlar, setTaseronlar] = useState([]);
@@ -59,14 +58,14 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         setBinaYapisi(binaYapisiData);
       } catch (error) {
         console.error('Veri yüklenirken hata:', error);
-        showSnackbar('Veriler yüklenirken hata oluştu', 'error');
+        enqueueSnackbar('Veriler yüklenirken hata oluştu', { variant: 'error' });
       } finally {
         setYukleniyor(false);
       }
     };
 
     yukle();
-  }, [seciliSantiye?.id, seciliBlok?.id, showSnackbar]);
+  }, [seciliSantiye?.id, seciliBlok?.id]);
 
   useEffect(() => {
     // Teslimat ekip görünümü için özel ayarlar
@@ -383,10 +382,10 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         window.URL.revokeObjectURL(url);
       }
 
-      showSnackbar('Excel dosyası başarıyla oluşturuldu', 'success');
+      enqueueSnackbar('Excel dosyası başarıyla oluşturuldu', { variant: 'success' });
     } catch (error) {
       console.error('Excel export hatası:', error);
-      showSnackbar('Excel dosyası oluşturulurken hata oluştu', 'error');
+      enqueueSnackbar('Excel dosyası oluşturulurken hata oluştu', { variant: 'error' });
     }
   };
 
@@ -394,10 +393,10 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
     try {
       await binaService.eksiklikSil(seciliSantiye.id, seciliBlok.id, eksiklikId);
       setEksiklikler(prev => prev.filter(e => e.id !== eksiklikId));
-      showSnackbar('Eksiklik başarıyla silindi', 'success');
+      enqueueSnackbar('Eksiklik başarıyla silindi', { variant: 'success' });
     } catch (error) {
       console.error('Eksiklik silinirken hata:', error);
-      showSnackbar('Eksiklik silinirken hata oluştu', 'error');
+      enqueueSnackbar('Eksiklik silinirken hata oluştu', { variant: 'error' });
     }
   };
 
@@ -427,10 +426,10 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         setEksiklikler(prev => [...prev, yeniEksiklik]);
       }
       setFormModalAcik(false);
-      showSnackbar('Eksiklik başarıyla kaydedildi', 'success');
+      enqueueSnackbar('Eksiklik başarıyla kaydedildi', { variant: 'success' });
     } catch (error) {
       console.error('Eksiklik kaydedilirken hata:', error);
-      showSnackbar('Eksiklik kaydedilirken hata oluştu', 'error');
+      enqueueSnackbar('Eksiklik kaydedilirken hata oluştu', { variant: 'error' });
     }
   };
 

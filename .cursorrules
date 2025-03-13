@@ -1,0 +1,123 @@
+# OĞUZATA Şantiye Takip Programı Yapısı
+
+## 1. Temel Bileşenler
+- Layout (Ana düzen)
+- Sidebar (Sol menü)
+- Header (Üst menü)
+- PageTitle (Sayfa başlığı)
+- SantiyeSecici (Şantiye seçim bileşeni)
+
+## 2. Ana Modüller
+### 2.1 Şantiye Yönetimi
+- Şantiye listesi
+- Şantiye detay
+- Blok yönetimi
+- Daire yönetimi
+
+### 2.2 Personel Yönetimi
+- Personel listesi
+- Personel kayıt
+- Personel detay
+- Puantaj
+
+### 2.3 Sözleşme ve Hakediş
+- Sözleşme listesi
+- Sözleşme form
+- Yeşil defter
+- Ataşman
+- Metraj
+- Kesinti
+- Hakediş
+- Birim fiyatlar
+- Taşeron yönetimi
+
+### 2.4 Depo Yönetimi
+- Stok listesi
+- Stok giriş/çıkış
+- Malzeme tanımları
+- Depo tanımları
+
+### 2.5 İş Programı
+- İş programı listesi
+- İş programı detay
+- Görev atama
+- İlerleme takibi
+
+### 2.6 Günlük Rapor
+- Rapor listesi
+- Rapor oluşturma
+- Rapor detay
+
+### 2.7 Teslimat Ekip
+- Eksiklik listesi
+- Eksiklik yönetimi
+- Teslimat takibi
+
+### 2.8 Mesajlaşma
+- Mesaj listesi
+- Mesaj detay
+- Bildirimler
+
+## 3. Veri Yapısı (Firebase Collections)
+- users
+- santiyeler
+- personeller
+- sozlesmeler
+- yesilDefter
+- atasmanlar
+- metrajlar
+- kesintiler
+- hakedisler
+- birimFiyatlar
+- taseronlar
+- depolar
+- stoklar
+- isProgramlari
+- gunlukRaporlar
+- eksiklikler
+- mesajlar
+
+## 4. Yetkilendirme Kuralları
+- Admin: Tam yetki
+- Yönetici: Kendi şantiyelerinde tam yetki
+- Personel: Atandığı görevlerde yetki
+- Taşeron: Kendi sözleşmelerinde görüntüleme yetkisi
+
+## 5. UI/UX Kuralları
+- Material-UI bileşenleri kullanılacak
+- Responsive tasarım
+- Dark/Light tema desteği
+- Türkçe dil desteği
+- Mobil uyumlu tasarım
+
+## 6. Performans Kuralları
+- Sayfalama (pagination) kullanımı
+- Lazy loading
+- Önbellekleme (caching)
+- Optimistic UI güncellemeleri
+- Batch işlemler
+
+## 7. Güvenlik Kuralları
+- Firebase Authentication
+- Firestore güvenlik kuralları
+- Input validasyonları
+- XSS koruması
+- CSRF koruması
+
+## 8. Hata Yönetimi
+- Global error boundary
+- Snackbar bildirimleri
+- Detaylı hata logları
+- Kullanıcı dostu hata mesajları
+
+## 9. Test Kuralları
+- Unit testler
+- Integration testler
+- E2E testler
+- Performance testleri
+
+## 10. Deployment Kuralları
+- CI/CD pipeline
+- Staging ve Production ortamları
+- Versiyonlama
+- Backup stratejisi 

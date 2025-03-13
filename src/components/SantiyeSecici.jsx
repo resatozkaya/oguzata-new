@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Settings as SettingsIcon } from '@mui/icons-material';
 import { binaService } from '../services/binaService';
-import { useSnackbar } from '@/contexts/SnackbarContext';
+import { enqueueSnackbar } from 'notistack';
 import { useTheme } from '@mui/material/styles';
 import BlokYonetimDialog from './bina/BlokYonetimDialog';
 
@@ -28,7 +28,6 @@ const SantiyeSecici = ({
   setSantiyeler,
   showBlokYonetim = false
 }) => {
-  const { showSnackbar } = useSnackbar();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const [modalAcik, setModalAcik] = useState(false);
@@ -41,7 +40,7 @@ const SantiyeSecici = ({
 
   const handleYeniBlokEkle = async () => {
     if (!seciliSantiye?.id || !yeniBlok.ad) {
-      showSnackbar('Lütfen şantiye seçin ve blok adı girin', 'warning');
+      enqueueSnackbar('Lütfen şantiye seçin ve blok adı girin', { variant: 'warning' });
       return;
     }
 
@@ -68,17 +67,17 @@ const SantiyeSecici = ({
         setSeciliSantiye(guncelSantiye);
       }
       
-      showSnackbar('Yeni blok başarıyla eklendi', 'success');
+      enqueueSnackbar('Yeni blok başarıyla eklendi', { variant: 'success' });
     } catch (error) {
       console.error('Blok eklenirken hata:', error);
-      showSnackbar('Blok eklenirken hata oluştu', 'error');
+      enqueueSnackbar('Blok eklenirken hata oluştu', { variant: 'error' });
     }
   };
 
   // Blok güncelleme fonksiyonu
   const handleBlokGuncelle = async (blokId, yeniAd) => {
     if (!seciliSantiye?.id || !blokId) {
-      showSnackbar('Geçerli bir şantiye ve blok seçilmedi', 'warning');
+      enqueueSnackbar('Geçerli bir şantiye ve blok seçilmedi', { variant: 'warning' });
       return;
     }
 
@@ -102,17 +101,17 @@ const SantiyeSecici = ({
         setSeciliBlok(guncelBlok);
       }
 
-      showSnackbar('Blok başarıyla güncellendi', 'success');
+      enqueueSnackbar('Blok başarıyla güncellendi', { variant: 'success' });
     } catch (error) {
       console.error('Blok güncellenirken hata:', error);
-      showSnackbar('Blok güncellenirken hata oluştu: ' + error.message, 'error');
+      enqueueSnackbar('Blok güncellenirken hata oluştu: ' + error.message, { variant: 'error' });
     }
   };
 
   // BlokYonetimDialog'da kullanılacak
   const handleBlokSil = async (blokId) => {
     if (!seciliSantiye?.id || !blokId) {
-      showSnackbar('Geçerli bir şantiye ve blok seçilmedi', 'warning');
+      enqueueSnackbar('Geçerli bir şantiye ve blok seçilmedi', { variant: 'warning' });
       return;
     }
 
@@ -128,10 +127,10 @@ const SantiyeSecici = ({
         setSeciliBlok(null);
       }
 
-      showSnackbar('Blok başarıyla silindi', 'success');
+      enqueueSnackbar('Blok başarıyla silindi', { variant: 'success' });
     } catch (error) {
       console.error('Blok silinirken hata:', error);
-      showSnackbar('Blok silinirken hata oluştu: ' + error.message, 'error');
+      enqueueSnackbar('Blok silinirken hata oluştu: ' + error.message, { variant: 'error' });
     }
   };
 

@@ -1,547 +1,537 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+// Firebase imports
+import { db } from '../../config/firebase';
+import { collection, query, where, getDocs, addDoc, doc, getDoc, serverTimestamp, updateDoc, orderBy, writeBatch } from 'firebase/firestore';
+
+// Context imports
+import { useAuth } from '../../contexts/AuthContext';
+
+// Service imports
+import sozlesmeService from '../../services/sozlesmeService';
+
+// Component imports
+import SozlesmeSantiyeSecici from '../../components/SozlesmeSantiyeSecici';
+
+// Material-UI imports
 import {
     Box,
     Button,
+    FormControl,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
     TextField,
     Typography,
-    Paper,
-    Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogContentText,
+    DialogActions,
+    Tooltip,
+    Chip,
+    Card,
+    CardContent,
+    InputAdornment,
+    Tabs,
+    Tab
 } from '@mui/material';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import tr from 'date-fns/locale/tr';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { doc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { auth } from '../../config/firebase';
+import { MobileDatePicker } from '@mui/x-date-pickers/MobileDatePicker';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import SaveIcon from '@mui/icons-material/Save';
+import { Autocomplete } from '@mui/material';
+import { CircularProgress, Alert, Divider } from '@mui/material';
+
+// React imports
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
+import { useTheme } from '../../contexts/ThemeContext';
+import { alpha } from '@mui/material/styles';
+
+// Date imports
+import dayjs from 'dayjs';
+import 'dayjs/locale/tr';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+// Configure dayjs
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.locale('tr');
+
+// TabPanel bileşeni
+function TabPanel(props) {
+    const { children, value, index, ...other } = props;
+
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`hakedis-tabpanel-${index}`}
+            aria-labelledby={`hakedis-tab-${index}`}
+            {...other}
+        >
+            {value === index && (
+                <Box sx={{ p: 3 }}>
+                    {children}
+                </Box>
+            )}
+        </div>
+    );
+}
 
 const HakedisForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { enqueueSnackbar } = useSnackbar();
+    const { currentUser } = useAuth();
+    const { isDarkMode, sidebarColor } = useTheme();
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState(0);
+
     const [formData, setFormData] = useState({
         hakedisNo: '',
+        sozlesmeId: '',
         donem: null,
+        isKalemleri: [],
+        kesintiler: [],
+        atasmanlar: [],
         toplamTutar: 0,
-        durum: 'taslak',
-        taseronId: '',
-        taseronAdi: '',
-        santiyeId: '',
-        santiyeAdi: '',
-        aciklama: '',
-        onaylayanId: '',
-        onaylayanAdi: '',
-        onayTarihi: null,
-        redNedeni: ''
+        kesintilerToplami: 0,
+        kdv: 0,
+        netTutar: 0,
+        durum: 'taslak'
     });
-    const [metrajlar, setMetrajlar] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [taseronlar, setTaseronlar] = useState([]);
-    const [santiyeler, setSantiyeler] = useState([]);
-    const [birimFiyatlar, setBirimFiyatlar] = useState([]);
-    const [filtrelenmisBirimFiyatlar, setFiltrelenmisBirimFiyatlar] = useState([]);
-    const [metrajDialogOpen, setMetrajDialogOpen] = useState(false);
-    const [yeniMetraj, setYeniMetraj] = useState({
-        pozNo: '',
-        birimFiyatId: '',
-        miktar: '',
-        birim: '',
-        tutar: 0
-    });
-    const [userRole, setUserRole] = useState(null);
+
+    const [sozlesmeler, setSozlesmeler] = useState([]);
+    const [yesilDefterVerileri, setYesilDefterVerileri] = useState([]);
+    const [kesintilerListesi, setKesintilerListesi] = useState([]);
+    const [atasmanlar, setAtasmanlar] = useState([]);
 
     useEffect(() => {
-        loadInitialData();
-        const checkUserRole = async () => {
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                if (userDoc.exists()) {
-                    setUserRole(userDoc.data().role);
-                }
-            }
-        };
-        checkUserRole();
+        loadSozlesmeler();
+        if (id) {
+            loadHakedis(id);
+        }
     }, [id]);
 
-    const loadInitialData = async () => {
+    const loadSozlesmeler = async () => {
         try {
-            // Taşeronları yükle
-            const taseronlarSnapshot = await getDocs(
-                query(collection(db, 'personeller'), where('calismaSekli', '==', 'TAŞERON'))
-            );
-            const taseronlarData = taseronlarSnapshot.docs.map(doc => ({
-                id: doc.id,
-                firma: doc.data().firma || '',
-                ...doc.data()
-            }));
-            setTaseronlar(taseronlarData);
-
-            // Şantiyeleri yükle
-            const santiyelerSnapshot = await getDocs(collection(db, 'santiyeler'));
-            const santiyelerData = santiyelerSnapshot.docs.map(doc => ({
+            const sozlesmeRef = collection(db, 'sozlesmeler');
+            const q = query(sozlesmeRef, orderBy('sozlesmeAdi'));
+            const querySnapshot = await getDocs(q);
+            const sozlesmeData = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            setSantiyeler(santiyelerData);
+            setSozlesmeler(sozlesmeData);
+        } catch (error) {
+            console.error('Sözleşmeler yüklenirken hata:', error);
+            setError('Sözleşmeler yüklenemedi');
+        }
+    };
 
-            // Birim fiyatları yükle
-            const birimFiyatlarSnapshot = await getDocs(collection(db, 'birimFiyatlar'));
-            const birimFiyatlarData = birimFiyatlarSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setBirimFiyatlar(birimFiyatlarData);
-
-            if (id) {
-                // Mevcut hakediş verilerini yükle
-                const hakedisDoc = await getDoc(doc(db, 'hakedisler', id));
+    const loadHakedis = async (hakedisId) => {
+        try {
+            setLoading(true);
+            const hakedisDoc = await getDoc(doc(db, 'hakedisler', hakedisId));
+            
                 if (hakedisDoc.exists()) {
-                    const data = hakedisDoc.data();
-                    setFormData({
-                        hakedisNo: data.hakedisNo || '',
-                        donem: data.donem ? new Date(data.donem.seconds * 1000) : null,
-                        toplamTutar: data.toplamTutar || 0,
-                        durum: data.durum || 'taslak',
-                        taseronId: data.taseronId || '',
-                        taseronAdi: data.taseronAdi || '',
-                        santiyeId: data.santiyeId || '',
-                        santiyeAdi: data.santiyeAdi || '',
-                        aciklama: data.aciklama || '',
-                        onaylayanId: data.onaylayanId || '',
-                        onaylayanAdi: data.onaylayanAdi || '',
-                        onayTarihi: data.onayTarihi ? new Date(data.onayTarihi.seconds * 1000) : null,
-                        redNedeni: data.redNedeni || ''
-                    });
-                    setMetrajlar(data.metrajlar || []);
-                    
-                    // Mevcut taşeronun birim fiyatlarını filtrele
-                    if (data.taseronId) {
-                        const taseronBirimFiyatlari = birimFiyatlarData.filter(bf => bf.taseronId === data.taseronId);
-                        setFiltrelenmisBirimFiyatlar(taseronBirimFiyatlari);
+                    const hakedisData = hakedisDoc.data();
+                setFormData(hakedisData);
+
+                    if (hakedisData.sozlesmeId) {
+                    const sozlesmeDoc = await getDoc(doc(db, 'sozlesmeler', hakedisData.sozlesmeId));
+                    if (sozlesmeDoc.exists()) {
+                        setFormData(prev => ({ ...prev, sozlesmeId: hakedisData.sozlesmeId }));
+                        await loadYesilDefterVerileri(hakedisData.sozlesmeId);
+                        await loadKesintiler(hakedisData.sozlesmeId);
+                        await loadAtasmanlar(hakedisData.sozlesmeId);
                     }
                 }
+            } else {
+                setError('Hakediş bulunamadı');
             }
         } catch (error) {
-            console.error('Veri yüklenirken hata:', error);
+            console.error('Hakediş yüklenirken hata:', error);
+            setError('Hakediş yüklenirken bir hata oluştu');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!formData.hakedisNo || !formData.donem || !formData.taseronId || !formData.santiyeId) {
-            alert('Lütfen zorunlu alanları doldurun');
-            return;
-        }
-
+    const loadYesilDefterVerileri = async (sozlesmeId) => {
         try {
-            const toplamTutar = metrajlar.reduce((total, metraj) => total + (metraj.tutar || 0), 0);
-            const currentUser = auth.currentUser;
+            const yesilDefterRef = collection(db, 'yesilDefter');
+            const q = query(
+                yesilDefterRef,
+                where('sozlesmeId', '==', sozlesmeId),
+                where('durum', '==', 'aktif')
+            );
+            const querySnapshot = await getDocs(q);
+            const veriler = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                secili: false
+            }));
+            setYesilDefterVerileri(veriler);
+        } catch (error) {
+            console.error('Yeşil defter verileri yüklenirken hata:', error);
+        }
+    };
+
+    const loadKesintiler = async (sozlesmeId) => {
+        try {
+            const kesintilerRef = collection(db, 'kesintiler');
+            const q = query(
+                kesintilerRef,
+                where('sozlesmeId', '==', sozlesmeId),
+                where('durum', '==', 'aktif')
+            );
+            const querySnapshot = await getDocs(q);
+            const kesintiler = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                secili: false
+            }));
+            setKesintilerListesi(kesintiler);
+        } catch (error) {
+            console.error('Kesintiler yüklenirken hata:', error);
+        }
+    };
+
+    const loadAtasmanlar = async (sozlesmeId) => {
+        try {
+            const atasmanRef = collection(db, 'atasmanlar');
+            const q = query(
+                atasmanRef,
+                where('sozlesmeId', '==', sozlesmeId),
+                where('durum', '==', 'aktif')
+            );
+            const querySnapshot = await getDocs(q);
+            const atasmanlar = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                secili: false
+            }));
+            setAtasmanlar(atasmanlar);
+        } catch (error) {
+            console.error('Ataşmanlar yüklenirken hata:', error);
+        }
+    };
+
+    const generateHakedisNo = async (sozlesmeId, donem) => {
+        if (!sozlesmeId || !donem) return '';
+        
+        try {
+            const sozlesmeDoc = await getDoc(doc(db, 'sozlesmeler', sozlesmeId));
+            if (!sozlesmeDoc.exists()) return '';
             
-            let yeniDurum = formData.durum;
-            let onaylayanId = formData.onaylayanId;
-            let onaylayanAdi = formData.onaylayanAdi;
-            let onayTarihi = formData.onayTarihi;
+            const sozlesmeKodu = sozlesmeDoc.data().sozlesmeKodu || '';
+            const yil = new Date(donem.seconds * 1000).getFullYear();
+            
+            // Mevcut hakedişleri kontrol et
+            const hakedisRef = collection(db, 'hakedisler');
+            const q = query(
+                hakedisRef,
+                where('sozlesmeId', '==', sozlesmeId),
+                where('yil', '==', yil)
+            );
+            const querySnapshot = await getDocs(q);
+            const donemNo = querySnapshot.size + 1;
+            
+            return `${sozlesmeKodu}-${yil}-${donemNo.toString().padStart(3, '0')}`;
+        } catch (error) {
+            console.error('Hakediş no üretilirken hata:', error);
+            return '';
+        }
+    };
 
-            // Eğer onaya gönderiliyorsa
-            if (formData.durum === 'onayda') {
-                yeniDurum = 'onayda';
-                onaylayanId = '';
-                onaylayanAdi = '';
-                onayTarihi = null;
-            }
-            // Eğer onaylanıyorsa
-            else if (formData.durum === 'onaylandi') {
-                yeniDurum = 'onaylandi';
-                onaylayanId = currentUser.uid;
-                onaylayanAdi = currentUser.displayName || currentUser.email;
-                onayTarihi = new Date();
-            }
-            // Eğer reddediliyorsa
-            else if (formData.durum === 'reddedildi' && !formData.redNedeni) {
-                alert('Lütfen red nedenini belirtiniz');
-                return;
-            }
+    const handleSozlesmeChange = async (event) => {
+        const sozlesmeId = event.target.value;
+        setFormData(prev => ({ ...prev, sozlesmeId }));
+        
+        // İlgili verileri yükle
+        await loadYesilDefterVerileri(sozlesmeId);
+        await loadKesintiler(sozlesmeId);
+        await loadAtasmanlar(sozlesmeId);
+        
+        // Hakediş no güncelle
+        if (formData.donem) {
+            const hakedisNo = await generateHakedisNo(sozlesmeId, formData.donem);
+            setFormData(prev => ({ ...prev, hakedisNo }));
+        }
+    };
 
-            await updateDoc(doc(db, 'hakedisler', id), {
+    const handleDonemChange = async (date) => {
+        setFormData(prev => ({ ...prev, donem: date }));
+        
+        if (formData.sozlesmeId) {
+            const hakedisNo = await generateHakedisNo(formData.sozlesmeId, date);
+            setFormData(prev => ({ ...prev, hakedisNo }));
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            
+            // Hakediş verilerini kaydet
+            const hakedisRef = id ? doc(db, 'hakedisler', id) : doc(collection(db, 'hakedisler'));
+            await updateDoc(hakedisRef, {
                 ...formData,
-                toplamTutar,
-                metrajlar,
-                durum: yeniDurum,
-                onaylayanId,
-                onaylayanAdi,
-                onayTarihi,
-                guncellemeTarihi: new Date()
+                updatedAt: new Date(),
+                updatedBy: currentUser.uid,
+                ...(id ? {} : { createdAt: new Date(), createdBy: currentUser.uid })
             });
+
+            // Yeşil defter verilerini güncelle
+            for (const isKalemi of formData.isKalemleri) {
+                const yesilDefterRef = doc(db, 'yesilDefter', isKalemi.yesilDefterId);
+                await updateDoc(yesilDefterRef, {
+                    oncekiAylarToplami: isKalemi.miktar,
+                    updatedAt: new Date(),
+                    updatedBy: currentUser.uid
+                });
+            }
+
+            enqueueSnackbar('Hakediş başarıyla kaydedildi', { variant: 'success' });
             navigate('/hakedis');
         } catch (error) {
-            console.error('Hakediş güncellenirken hata:', error);
+            console.error('Hakediş kaydedilirken hata:', error);
+            enqueueSnackbar('Hakediş kaydedilirken bir hata oluştu', { variant: 'error' });
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        if (name === 'taseronId') {
-            const taseron = taseronlar.find(t => t.id === value);
-            setFormData(prev => ({
-                ...prev,
-                taseronId: value,
-                taseronAdi: taseron ? taseron.firma : ''
-            }));
-            // Taşerona ait birim fiyatları filtrele
-            const taseronBirimFiyatlari = birimFiyatlar.filter(bf => bf.taseronId === value);
-            setFiltrelenmisBirimFiyatlar(taseronBirimFiyatlari);
-        } else if (name === 'santiyeId') {
-            const santiye = santiyeler.find(s => s.id === value);
-            setFormData(prev => ({
-                ...prev,
-                santiyeId: value,
-                santiyeAdi: santiye ? santiye.ad : ''
-            }));
-        } else {
-            setFormData(prev => ({
-                ...prev,
-                [name]: value
-            }));
-        }
+    const handleTabChange = (event, newValue) => {
+        setActiveTab(newValue);
     };
 
-    const handleMetrajEkle = () => {
-        if (!formData.taseronId) {
-            alert('Lütfen önce taşeron seçiniz');
-            setMetrajDialogOpen(false);
-            return;
-        }
+    const calculateTotals = () => {
+        const toplamTutar = formData.isKalemleri.reduce((sum, item) => sum + (item.miktar * item.birimFiyat), 0);
+        const kesintilerToplami = formData.kesintiler.reduce((sum, item) => sum + item.tutar, 0);
+        const kdv = toplamTutar * 0.20; // %20 KDV
+        const netTutar = toplamTutar - kesintilerToplami + kdv;
 
-        if (!yeniMetraj.birimFiyatId || !yeniMetraj.miktar) {
-            alert('Lütfen birim fiyat ve miktar giriniz');
-            return;
-        }
-
-        const birimFiyat = birimFiyatlar.find(bf => bf.id === yeniMetraj.birimFiyatId);
-        if (!birimFiyat) return;
-
-        const tutar = parseFloat(yeniMetraj.miktar) * parseFloat(birimFiyat.birimFiyat);
-        
-        const yeniMetrajKaydi = {
-            ...yeniMetraj,
-            pozNo: birimFiyat.pozNo,
-            birim: birimFiyat.birim,
-            birimFiyat: birimFiyat.birimFiyat,
-            tutar
-        };
-
-        setMetrajlar([...metrajlar, yeniMetrajKaydi]);
-        setMetrajDialogOpen(false);
-        setYeniMetraj({
-            pozNo: '',
-            birimFiyatId: '',
-            miktar: '',
-            birim: '',
-            tutar: 0
-        });
+        setFormData(prev => ({
+            ...prev,
+            toplamTutar,
+            kesintilerToplami,
+            kdv,
+            netTutar
+        }));
     };
 
-    const handleMetrajSil = (index) => {
-        const yeniMetrajlar = metrajlar.filter((_, i) => i !== index);
-        setMetrajlar(yeniMetrajlar);
-    };
+    useEffect(() => {
+        calculateTotals();
+    }, [formData.isKalemleri, formData.kesintiler]);
 
     if (loading) {
-        return <Typography>Yükleniyor...</Typography>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (error) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error">{error}</Alert>
+            </Box>
+        );
     }
 
     return (
         <Box sx={{ p: 3 }}>
-            <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    Hakediş Düzenle
-                </Typography>
+            <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
+                {id ? 'Hakediş Düzenle' : 'Yeni Hakediş'}
+            </Typography>
 
-                <form onSubmit={handleSubmit}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}>
+            <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+                <Tab label="İş Kalemleri" />
+                <Tab label="Kesintiler" />
+                <Tab label="Ataşmanlar" />
+            </Tabs>
+
+            <form onSubmit={handleSave}>
+                {activeTab === 0 && (
+                    <Card sx={{ mb: 3 }}>
+                        <CardContent>
+                <Grid container spacing={3}>
+                                <Grid item xs={12} md={6}>
                             <TextField
-                                fullWidth
+                                        fullWidth
                                 label="Hakediş No"
-                                name="hakedisNo"
                                 value={formData.hakedisNo}
-                                onChange={handleChange}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, hakedisNo: e.target.value }))}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Autocomplete
+                                        options={sozlesmeler}
+                                        getOptionLabel={(option) => option ? `${option.sozlesmeNo} - ${option.sozlesmeAdi}` : ''}
+                                        value={sozlesmeler.find(sozlesme => sozlesme.id === formData.sozlesmeId) || null}
+                                        onChange={(event, newValue) => {
+                                            if (newValue) {
+                                                handleSozlesmeChange({ target: { value: newValue.id } });
+                                            }
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Sözleşme"
                                 required
+                                            />
+                                        )}
+                                        isOptionEqualToValue={(option, value) => option.id === value?.id}
                             />
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={tr}>
-                                <DatePicker
-                                    label="Dönem"
-                                    value={formData.donem}
-                                    onChange={(newValue) => {
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            donem: newValue
-                                        }));
-                                    }}
-                                    renderInput={(params) => <TextField {...params} fullWidth required />}
-                                />
-                            </LocalizationProvider>
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Taşeron</InputLabel>
-                                <Select
-                                    name="taseronId"
-                                    value={formData.taseronId}
-                                    onChange={handleChange}
-                                    label="Taşeron"
-                                >
-                                    {taseronlar.map(taseron => (
-                                        <MenuItem key={taseron.id} value={taseron.id}>
-                                            {taseron.firma}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Şantiye</InputLabel>
-                                <Select
-                                    name="santiyeId"
-                                    value={formData.santiyeId}
-                                    onChange={handleChange}
-                                    label="Şantiye"
-                                >
-                                    {santiyeler.map(santiye => (
-                                        <MenuItem key={santiye.id} value={santiye.id}>
-                                            {santiye.ad}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Açıklama"
-                                name="aciklama"
-                                multiline
-                                rows={4}
-                                value={formData.aciklama}
-                                onChange={handleChange}
+                    </Grid>
+                                <Grid item xs={12} md={6}>
+                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                        <MobileDatePicker
+                                            label="Dönem"
+                                            inputFormat="MM/YYYY"
+                                            value={formData.donem ? dayjs.unix(formData.donem.seconds) : null}
+                                            onChange={(newValue) => {
+                                                if (newValue) {
+                                                    const date = newValue.toDate();
+                                                    handleDonemChange(date);
+                                                }
+                                            }}
+                                            views={['month', 'year']}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    fullWidth
+                                                    required
+                                                />
+                                            )}
                             />
-                        </Grid>
+                        </LocalizationProvider>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Durum</InputLabel>
+                            <Select
+                                            value={formData.durum}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, durum: e.target.value }))}
+                                        >
+                                            <MenuItem value="taslak">Taslak</MenuItem>
+                                            <MenuItem value="onaybekliyor">Onay Bekliyor</MenuItem>
+                                            <MenuItem value="onaylandi">Onaylandı</MenuItem>
+                                            <MenuItem value="reddedildi">Reddedildi</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                                        label="Açıklama"
+                            value={formData.aciklama}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, aciklama: e.target.value }))}
+                        />
+                    </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                )}
 
-                        <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6">Metrajlar</Typography>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    onClick={() => setMetrajDialogOpen(true)}
-                                >
-                                    Metraj Ekle
-                                </Button>
-                            </Box>
-
+                {activeTab === 1 && (
+                    <Card>
+                        <CardContent>
                             <TableContainer>
-                                <Table>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Poz No</TableCell>
-                                            <TableCell>İş Kalemi</TableCell>
-                                            <TableCell>Birim</TableCell>
-                                            <TableCell>Miktar</TableCell>
-                                            <TableCell>Birim Fiyat</TableCell>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                            <TableCell>Kesinti Adı</TableCell>
                                             <TableCell>Tutar</TableCell>
-                                            <TableCell>İşlemler</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {metrajlar.map((metraj, index) => {
-                                            const birimFiyat = birimFiyatlar.find(bf => bf.id === metraj.birimFiyatId);
-                                            return (
+                                        <TableCell>İşlemler</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                        {formData.kesintiler.map((kesinti, index) => (
                                                 <TableRow key={index}>
-                                                    <TableCell>{metraj.pozNo}</TableCell>
-                                                    <TableCell>{birimFiyat?.isKalemi}</TableCell>
-                                                    <TableCell>{metraj.birim}</TableCell>
-                                                    <TableCell>{metraj.miktar}</TableCell>
-                                                    <TableCell>{metraj.birimFiyat} TL</TableCell>
-                                                    <TableCell>{metraj.tutar} TL</TableCell>
+                                                <TableCell>{kesinti.ad}</TableCell>
+                                                <TableCell>{kesinti.tutar}</TableCell>
                                                     <TableCell>
-                                                        <IconButton
-                                                            size="small"
-                                                            color="error"
-                                                            onClick={() => handleMetrajSil(index)}
-                                                        >
+                                                    <IconButton onClick={() => {/* Kesinti silme */}}>
                                                             <DeleteIcon />
                                                         </IconButton>
                                                     </TableCell>
                                                 </TableRow>
-                                            );
-                                        })}
-                                        <TableRow>
-                                            <TableCell colSpan={5} align="right">
-                                                <Typography variant="subtitle1" fontWeight="bold">
-                                                    Toplam Tutar:
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Typography variant="subtitle1" fontWeight="bold">
-                                                    {metrajlar.reduce((total, metraj) => total + (metraj.tutar || 0), 0)} TL
-                                                </Typography>
-                                            </TableCell>
-                                            <TableCell />
-                                        </TableRow>
+                                            ))}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                        </Grid>
+                        </CardContent>
+                    </Card>
+                )}
 
-                        <Grid item xs={12}>
-                            <FormControl fullWidth>
-                                <InputLabel>Durum</InputLabel>
-                                <Select
-                                    name="durum"
-                                    value={formData.durum}
-                                    onChange={handleChange}
-                                    label="Durum"
-                                >
-                                    <MenuItem value="taslak">Taslak</MenuItem>
-                                    {formData.durum === 'taslak' && (
-                                        <MenuItem value="onayda">Onaya Gönder</MenuItem>
-                                    )}
-                                    {formData.durum === 'onayda' && userRole === 'yonetici' && (
-                                        <>
-                                            <MenuItem value="onaylandi">Onayla</MenuItem>
-                                            <MenuItem value="reddedildi">Reddet</MenuItem>
-                                        </>
-                                    )}
-                                    {formData.durum === 'reddedildi' && (
-                                        <MenuItem value="taslak">Taslağa Çevir</MenuItem>
-                                    )}
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                {activeTab === 2 && (
+                    <Card>
+                        <CardContent>
+                            <TableContainer>
+                                <Table>
+                                    <TableHead>
+                                            <TableRow>
+                                            <TableCell>Ataşman No</TableCell>
+                                            <TableCell>Açıklama</TableCell>
+                                            <TableCell>Tarih</TableCell>
+                                            <TableCell>İşlemler</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {formData.atasmanlar.map((atasman, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{atasman.no}</TableCell>
+                                                <TableCell>{atasman.aciklama}</TableCell>
+                                                <TableCell>{new Date(atasman.tarih.seconds * 1000).toLocaleDateString('tr-TR')}</TableCell>
+                                                <TableCell>
+                                                    <IconButton onClick={() => {/* Ataşman silme */}}>
+                                                        <DeleteIcon />
+                                                    </IconButton>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                        </CardContent>
+                    </Card>
+                )}
 
-                        {formData.durum === 'reddedildi' && (
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Red Nedeni"
-                                    name="redNedeni"
-                                    value={formData.redNedeni}
-                                    onChange={handleChange}
-                                    required
-                                    multiline
-                                    rows={3}
-                                />
-                            </Grid>
-                        )}
-
-                        {formData.onaylayanAdi && formData.durum === 'onaylandi' && (
-                            <Grid item xs={12}>
-                                <Typography variant="body2" color="textSecondary">
-                                    Onaylayan: {formData.onaylayanAdi}
-                                    <br />
-                                    Onay Tarihi: {formData.onayTarihi ? new Date(formData.onayTarihi.seconds * 1000).toLocaleString() : '-'}
-                                </Typography>
-                            </Grid>
-                        )}
-
-                        <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => navigate('/hakedis')}
-                                >
-                                    İptal
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    variant="contained"
-                                    color="primary"
-                                >
-                                    Kaydet
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </form>
-            </Paper>
-
-            {/* Metraj Ekleme Dialog */}
-            <Dialog
-                open={metrajDialogOpen}
-                onClose={() => setMetrajDialogOpen(false)}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle>Metraj Ekle</DialogTitle>
-                <DialogContent>
-                    <Grid container spacing={3} sx={{ mt: 1 }}>
-                        <Grid item xs={12}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Birim Fiyat</InputLabel>
-                                <Select
-                                    value={yeniMetraj.birimFiyatId}
-                                    onChange={(e) => setYeniMetraj({
-                                        ...yeniMetraj,
-                                        birimFiyatId: e.target.value
-                                    })}
-                                    label="Birim Fiyat"
-                                >
-                                    {filtrelenmisBirimFiyatlar.map(bf => (
-                                        <MenuItem key={bf.id} value={bf.id}>
-                                            {bf.pozNo} - {bf.isKalemi} ({bf.birimFiyat} TL/{bf.birim})
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Miktar"
-                                type="number"
-                                value={yeniMetraj.miktar}
-                                onChange={(e) => setYeniMetraj({
-                                    ...yeniMetraj,
-                                    miktar: e.target.value
-                                })}
-                                required
-                            />
-                        </Grid>
-                    </Grid>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setMetrajDialogOpen(false)}>İptal</Button>
-                    <Button onClick={handleMetrajEkle} variant="contained" color="primary">
-                        Ekle
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                    <Button onClick={() => navigate('/hakedis')}>
+                        İptal
+                            </Button>
+                    <Button 
+                        variant="contained" 
+                        type="submit"
+                        disabled={saving}
+                    >
+                        {saving ? 'Kaydediliyor...' : (id ? 'Güncelle' : 'Kaydet')}
                     </Button>
-                </DialogActions>
-            </Dialog>
+                </Box>
+            </form>
         </Box>
     );
 };

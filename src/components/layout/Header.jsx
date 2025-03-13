@@ -128,11 +128,11 @@ const Header = ({ onMenuClick }) => {
             </Badge>
           </IconButton>
 
-          <IconButton color="inherit">
+          {/* <IconButton color="inherit">
             <Badge badgeContent={17} color="error">
               <NotificationsIcon />
             </Badge>
-          </IconButton>
+          </IconButton> */}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ textAlign: 'right' }}>

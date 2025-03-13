@@ -16,7 +16,13 @@ import {
   LinearProgress,
   DialogTitle,
   DialogActions,
-  useMediaQuery
+  useMediaQuery,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import { useNavigate, Link } from 'react-router-dom';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -38,7 +44,9 @@ import {
   Circle as CircleIcon,
   Warehouse as WarehouseIcon,
   ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Receipt as ReceiptIcon,
+  AttachMoney as AttachMoneyIcon
 } from '@mui/icons-material';
 import {
   collection, getDocs, query, orderBy, doc, getDoc
@@ -417,6 +425,93 @@ const ProjectCard = ({ santiye, bugunCalisanlar }) => {
   );
 };
 
+const HakedisOzetiCard = ({ hakedisler }) => {
+  const { isDarkMode, sidebarColor } = useTheme();
+  const navigate = useNavigate();
+  
+  return (
+    <Card 
+      sx={{ 
+        height: '100%',
+        bgcolor: isDarkMode ? 'background.paper' : '#fff',
+        boxShadow: 3,
+        cursor: 'pointer',
+        '&:hover': {
+          boxShadow: 6,
+          transform: 'translateY(-2px)',
+          transition: 'all 0.3s'
+        }
+      }}
+      onClick={() => navigate('/hakedis')}
+    >
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <ReceiptIcon sx={{ color: sidebarColor, mr: 1 }} />
+          <Typography variant="h6">Hakediş Özeti</Typography>
+        </Box>
+        
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={6}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: isDarkMode ? alpha(sidebarColor, 0.1) : alpha(sidebarColor, 0.05),
+              textAlign: 'center'
+            }}>
+              <Typography variant="subtitle2" color="textSecondary">Onay Bekleyen</Typography>
+              <Typography variant="h4" sx={{ color: sidebarColor, fontWeight: 'bold' }}>
+                {hakedisler?.filter(h => h.durum === 'beklemede')?.length || 0}
+              </Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={6}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: isDarkMode ? alpha(sidebarColor, 0.1) : alpha(sidebarColor, 0.05),
+              textAlign: 'center'
+            }}>
+              <Typography variant="subtitle2" color="textSecondary">Ödeme Bekleyen</Typography>
+              <Typography variant="h4" sx={{ color: sidebarColor, fontWeight: 'bold' }}>
+                {hakedisler?.filter(h => h.durum === 'onaylandı' && !h.odendi)?.length || 0}
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Taşeron</TableCell>
+                <TableCell>Tutar</TableCell>
+                <TableCell>Durum</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(hakedisler || []).slice(0, 5).map((hakedis, index) => (
+                <TableRow key={index}>
+                  <TableCell>{hakedis.taseron}</TableCell>
+                  <TableCell>{new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(hakedis.tutar)}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={hakedis.durum} 
+                      size="small"
+                      color={
+                        hakedis.durum === 'onaylandı' ? 'success' :
+                        hakedis.durum === 'beklemede' ? 'warning' :
+                        hakedis.durum === 'reddedildi' ? 'error' : 'default'
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
 const HomePage = () => {
   const [santiyeler, setSantiyeler] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -436,6 +531,7 @@ const HomePage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [hakedisler, setHakedisler] = useState([]);
 
   // Mouse sürükleme işlemleri
   const handleMouseDown = (e) => {
@@ -718,6 +814,15 @@ const HomePage = () => {
 
         
         setStats(statsData);
+
+        // Hakediş verilerini çek
+        const hakedisRef = collection(db, 'hakedisler');
+        const hakedisSnapshot = await getDocs(query(hakedisRef, orderBy('tarih', 'desc')));
+        const hakedisData = hakedisSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setHakedisler(hakedisData);
 
       } catch (error) {
         console.error("Veriler yüklenirken hata:", error);

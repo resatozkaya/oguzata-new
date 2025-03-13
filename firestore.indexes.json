@@ -1,0 +1,22 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "sozlesmeler",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kullaniciId", "order": "ASCENDING" },
+        { "fieldPath": "durum", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "yesilDefter",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sozlesmeId", "order": "ASCENDING" },
+        { "fieldPath": "kullaniciId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+} 

@@ -20,6 +20,20 @@ const getPageTitle = (pathname) => {
       return 'Günlük Rapor';
     case '/hakedis':
       return 'Hakediş Yönetimi';
+    case '/sozlesme':
+      return 'Sözleşme Yönetimi';
+    case '/yesilDefter':
+      return 'Yeşil Defter';
+    case '/atasman':
+      return 'Ataşman';
+    case '/metraj':
+      return 'Metraj';
+    case '/kesinti':
+      return 'Kesinti';
+    case '/birim-fiyatlar':
+      return 'Birim Fiyatlar';
+    case '/taseron-yonetimi':
+      return 'Taşeron Yönetimi';
     case '/teslim-fisi':
       return 'Teslim Fişi';
     case '/odeme-onay':

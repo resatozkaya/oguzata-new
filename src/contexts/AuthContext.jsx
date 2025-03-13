@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { signOut, sendPasswordResetEmail, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
@@ -82,11 +82,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updatePassword = async (newPassword) => {
+    if (!auth.currentUser) {
+      throw new Error('Kullanıcı oturum açmış olmalıdır');
+    }
+
+    try {
+      await firebaseUpdatePassword(auth.currentUser, newPassword);
+    } catch (error) {
+      console.error('Şifre güncelleme hatası:', error);
+      throw error;
+    }
+  };
+
   const value = {
     currentUser,
     setCurrentUser,
     logout,
     resetPassword,
+    updatePassword,
     loading
   };
 

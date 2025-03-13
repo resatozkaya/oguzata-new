@@ -14,11 +14,13 @@ import {
 } from '@mui/material';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import ChangePasswordModal from '../components/auth/ChangePasswordModal';
 
 const SettingsPage = () => {
   const { isDarkMode, toggleDarkMode, sidebarColor, changeSidebarColor } = useTheme();
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [formSettings, setFormSettings] = useState({
     emailNotifications: true,
     instantNotifications: true,
@@ -155,7 +157,15 @@ const SettingsPage = () => {
 
           <Box sx={{ mt: 4 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Güvenlik</Typography>
-            <Button variant="outlined">
+            <Button 
+              variant="outlined" 
+              onClick={() => setShowPasswordModal(true)}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(63, 81, 181, 0.04)'
+                }
+              }}
+            >
               ŞİFRE DEĞİŞTİR
             </Button>
           </Box>
@@ -172,6 +182,11 @@ const SettingsPage = () => {
           Ayarlar başarıyla kaydedildi!
         </Alert>
       </Snackbar>
+
+      <ChangePasswordModal 
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </Box>
   );
 };

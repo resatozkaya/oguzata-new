@@ -6,13 +6,14 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { alpha } from '@mui/material/styles';
 import SantiyeSecici from '../SantiyeSecici';
 import { useSantiye } from '../../contexts/SantiyeContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Outlet } from 'react-router-dom';
 import ErrorBoundary from '../ErrorBoundary';
 import { Edit as EditIcon } from '@mui/icons-material';
 import BinaYapisiDuzenle from '../bina/BinaYapisiDuzenle';
 import { binaService } from '../../services/binaService';
+import { useAuth } from '../../contexts/AuthContext';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const { isDarkMode } = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [duzenleDialogAcik, setDuzenleDialogAcik] = useState(false);
@@ -27,6 +28,7 @@ const Layout = ({ children }) => {
   } = useSantiye();
   const location = useLocation();
   const [isLoading, setIsLoading] = React.useState(true);
+  const { currentUser } = useAuth();
 
   // SantiyeSecici'nin görüneceği sayfalar
   const showSantiyeSeciciPages = [
@@ -58,17 +60,12 @@ const Layout = ({ children }) => {
     });
   }, [location.pathname]);
 
-  console.log('Current path:', location.pathname);
-  console.log('Selected block:', seciliBlok);
-  console.log('Should show edit button:', shouldShowBinaYapisiDuzenle);
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   const handleBinaYapisiGuncelle = async (binaYapisi) => {
     try {
-      // Firebase service'i kullan
       await binaService.setBinaYapisi(
         seciliSantiye?.id,
         seciliBlok?.id,
@@ -80,7 +77,6 @@ const Layout = ({ children }) => {
         }
       );
 
-      // Başarılı olursa verileri yenile
       if (typeof yenileVerileri === 'function') {
         await yenileVerileri();
       }
@@ -92,16 +88,19 @@ const Layout = ({ children }) => {
   };
 
   React.useEffect(() => {
-    // Gerekli verilerin yüklenmesini bekleyin
     Promise.all([
-      // Örnek: API çağrıları
+      // Gerekli veriler yüklenirken
     ]).finally(() => {
       setIsLoading(false);
     });
   }, []);
 
+  if (!currentUser) {
+    return null;
+  }
+
   if (isLoading) {
-    return <div>Yükleniyor...</div>; // veya daha güzel bir loading component
+    return <div>Yükleniyor...</div>;
   }
 
   return (
@@ -165,7 +164,7 @@ const Layout = ({ children }) => {
             </Box>
           )}
 
-          {children}
+          <Outlet />
 
           <BinaYapisiDuzenle
             open={duzenleDialogAcik}

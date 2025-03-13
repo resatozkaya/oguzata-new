@@ -1,155 +1,127 @@
-import { db } from '../config/firebase';
+import { db } from '../firebase';
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    doc,
+    Timestamp
 } from 'firebase/firestore';
 
-class TaseronService {
-  constructor() {
-    this.collectionPath = 'personel';
-  }
+const COLLECTION_NAME = 'personeller';
 
-  // Aktif taşeronları getir
-  async taseronlariGetir() {
+// Tüm taşeronları getir
+export const taseronlariGetir = async () => {
     try {
-      console.log('👷 Taşeronlar getiriliyor');
-
-      const personelRef = collection(db, this.collectionPath);
-      const q = query(
-        personelRef,
-        where('tip', '==', 'TASERON'),
-        where('aktif', '==', true)
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      // Firma bazında grupla
-      const firmaGruplari = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.firma?.trim()) {
-          // Normalize firma adı (boşlukları alt tire ile değiştir)
-          const normalizedFirma = data.firma.trim().replace(/\s+/g, '_').toUpperCase();
-          if (!firmaGruplari[normalizedFirma]) {
-            firmaGruplari[normalizedFirma] = {
-              id: normalizedFirma,  // ID olarak normalize edilmiş adı kullan
-              ad: normalizedFirma,  // Gösterim için de normalize edilmiş adı kullan
-              personeller: []
-            };
-          }
-          firmaGruplari[normalizedFirma].personeller.push({
-            id: doc.id,
-            ...data
-          });
-        }
-      });
-
-      const taseronlar = Object.values(firmaGruplari);
-      console.log(`✅ ${taseronlar.length} taşeron firma başarıyla getirildi`);
-      return taseronlar;
-
+        // Tüm personel kayıtlarını getir
+        const snapshot = await getDocs(collection(db, COLLECTION_NAME));
+        console.log('Firestore\'dan gelen ham personel verileri:', snapshot.docs.length);
+        
+        const taseronlar = snapshot.docs
+            .map(doc => {
+                const data = doc.data();
+                console.log('Ham personel verisi:', { id: doc.id, ...data });
+                
+                // Firma adını belirle
+                let firma = '';
+                if (data.firma && typeof data.firma === 'string') {
+                    firma = data.firma.trim();
+                } else if (data.unvan && typeof data.unvan === 'string') {
+                    firma = data.unvan.trim();
+                } else if (data.ad && typeof data.ad === 'string') {
+                    firma = data.ad.trim();
+                }
+                
+                const taseron = {
+                    id: doc.id,
+                    firma: firma,
+                    yetkili: data.yetkili || '',
+                    telefon: data.telefon || '',
+                    vergiDairesi: data.vergiDairesi || '',
+                    vergiNo: data.vergiNo || '',
+                    tip: (data.tip || '').toLowerCase(),
+                    aktif: data.aktif !== false,
+                    createdAt: data.createdAt,
+                    ...data
+                };
+                
+                console.log(`Personel dönüştürüldü: ${taseron.firma} (${taseron.id}), Tip: ${taseron.tip}, Aktif: ${taseron.aktif}`);
+                return taseron;
+            })
+            .filter(taseron => {
+                const isValid = 
+                    taseron.firma && 
+                    taseron.aktif !== false && 
+                    taseron.tip === 'taseron';
+                    
+                if (!isValid) {
+                    console.log(`Personel filtrelendi (geçersiz): ${taseron.firma}, Tip: ${taseron.tip}, Aktif: ${taseron.aktif}`);
+                } else {
+                    console.log(`Taşeron bulundu: ${taseron.firma} (${taseron.id})`);
+                }
+                
+                return isValid;
+            })
+            .sort((a, b) => a.firma.localeCompare(b.firma, 'tr')); // Türkçe sıralama
+            
+        console.log('Filtrelenmiş taşeron listesi:', taseronlar.map(t => ({ id: t.id, firma: t.firma })));
+        return taseronlar;
     } catch (error) {
-      console.error('❌ Taşeronlar getirilirken hata:', error);
-      throw error;
+        console.error('Taşeronlar getirilirken hata:', error);
+        throw error;
     }
-  }
+};
 
-  // Yeni taşeron ekle
-  async taseronEkle(taseronData) {
+// Yeni taşeron ekle
+export const createTaseron = async (data) => {
     try {
-      console.log('➕ Yeni taşeron ekleniyor:', taseronData);
-
-      const yeniTaseron = {
-        ...taseronData,
-        tip: 'TASERON',
-        aktif: true,
-        olusturma_tarihi: serverTimestamp()
-      };
-
-      const docRef = await addDoc(collection(db, this.collectionPath), yeniTaseron);
-      console.log('✅ Taşeron başarıyla eklendi');
-      
-      return {
-        id: docRef.id,
-        ...yeniTaseron
-      };
+        const newData = {
+            ...data,
+            tip: 'taseron',
+            aktif: true,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+        };
+        
+        const docRef = await addDoc(collection(db, COLLECTION_NAME), newData);
+        return { id: docRef.id, ...newData };
     } catch (error) {
-      console.error('❌ Taşeron eklenirken hata:', error);
-      throw error;
+        console.error('Taşeron oluşturulurken hata:', error);
+        throw error;
     }
-  }
+};
 
-  // Taşeron güncelle
-  async taseronGuncelle(taseronId, yeniVeriler) {
+// Taşeron güncelle
+export const updateTaseron = async (id, data) => {
     try {
-      console.log(`✏️ Taşeron güncelleniyor - ID: ${taseronId}`);
-      console.log('Yeni veriler:', yeniVeriler);
-
-      const taseronRef = doc(db, this.collectionPath, taseronId);
-      await updateDoc(taseronRef, {
-        ...yeniVeriler,
-        guncelleme_tarihi: serverTimestamp()
-      });
-
-      console.log('✅ Taşeron başarıyla güncellendi');
-      return true;
+        const updateData = {
+            ...data,
+            updatedAt: Timestamp.now()
+        };
+        
+        const docRef = doc(db, COLLECTION_NAME, id);
+        await updateDoc(docRef, updateData);
+        return { id, ...updateData };
     } catch (error) {
-      console.error('❌ Taşeron güncellenirken hata:', error);
-      throw error;
+        console.error('Taşeron güncellenirken hata:', error);
+        throw error;
     }
-  }
+};
 
-  // Taşeron sil (soft delete)
-  async taseronSil(taseronId) {
+// Taşeron sil (soft delete)
+export const deleteTaseron = async (id) => {
     try {
-      console.log(`🗑️ Taşeron siliniyor - ID: ${taseronId}`);
-
-      const taseronRef = doc(db, this.collectionPath, taseronId);
-      await updateDoc(taseronRef, {
-        aktif: false,
-        silme_tarihi: serverTimestamp()
-      });
-
-      console.log('✅ Taşeron başarıyla silindi (soft delete)');
-      return true;
+        const docRef = doc(db, COLLECTION_NAME, id);
+        await updateDoc(docRef, {
+            aktif: false,
+            updatedAt: Timestamp.now()
+        });
+        return id;
     } catch (error) {
-      console.error('❌ Taşeron silinirken hata:', error);
-      throw error;
+        console.error('Taşeron silinirken hata:', error);
+        throw error;
     }
-  }
-
-  // Taşeron detaylarını getir
-  async taseronDetayGetir(taseronId) {
-    try {
-      console.log(`🔍 Taşeron detayları getiriliyor - ID: ${taseronId}`);
-
-      const taseronRef = doc(db, this.collectionPath, taseronId);
-      const snapshot = await getDocs(taseronRef);
-
-      if (!snapshot.exists()) {
-        console.log('⚠️ Taşeron bulunamadı');
-        return null;
-      }
-
-      const taseronData = {
-        id: snapshot.id,
-        ...snapshot.data()
-      };
-
-      console.log('✅ Taşeron detayları başarıyla getirildi');
-      return taseronData;
-    } catch (error) {
-      console.error('❌ Taşeron detayları getirilirken hata:', error);
-      throw error;
-    }
-  }
-}
-
-export const taseronService = new TaseronService();
+};
