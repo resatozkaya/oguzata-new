@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Card, CardContent, Button } from '@mui/material';
 import { Edit, Trash2 } from 'lucide-react';
 import { DURUM_TIPLERI, ONCELIK_SEVIYELERI } from '@/constants/teslimat';
 
@@ -78,16 +77,16 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
 
               <div className="flex gap-2 ml-4">
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="outlined"
+                  size="small"
                   className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
                   onClick={() => onDuzenle(eksiklik)}
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="outlined"
+                  size="small"
                   className="bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
                   onClick={() => {
                     if (window.confirm('Bu eksikliği silmek istediğinizden emin misiniz?')) {

@@ -8,7 +8,7 @@ import Layout from './components/layout/Layout';
 import { Box, CircularProgress } from '@mui/material';
 
 // Components
-import Login from './pages/auth/Login';
+import LoginPage from './pages/auth/LoginPage';
 import Register from './pages/auth/Register';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
@@ -34,7 +34,7 @@ import SozlesmeForm from './pages/sozlesme/SozlesmeForm';
 import SozlesmeDetay from './pages/sozlesme/SozlesmeDetay';
 import YesilDefter from './pages/YesilDefter';
 import Atasman from './pages/Atasman';
-import Metraj from './pages/Metraj';
+// import Metraj from './pages/Metraj';
 import Kesinti from './pages/Kesinti';
 import TaseronYonetimi from './pages/TaseronYonetimi';
 import YesilDefterList from './pages/yesilDefter/YesilDefterList';
@@ -67,7 +67,7 @@ const App = () => {
         <DepoProvider>
           <Routes>
             {/* Public routes */}
-            <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" />} />
+            <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/" />} />
             <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/" />} />
 
             {/* Protected routes */}
@@ -87,20 +87,22 @@ const App = () => {
               <Route path="/santiye/:santiyeId/blok/:blokId/eksiklikler" element={<EksiklikYonetimi />} />
               <Route path="/teslimat-ekip" element={<EksiklikYonetimi showTeslimatEkip={true} />} />
               <Route path="/mesajlar" element={<MesajlasmaSayfasi />} />
-              {/* <Route path="/sozlesme" element={<SozlesmePage />} />
+              {/* Sözleşme ve Hakediş ile ilgili tüm sayfalar geçici olarak kapalı
+              <Route path="/sozlesme" element={<SozlesmePage />} />
               <Route path="/sozlesme/yeni" element={<SozlesmeForm />} />
               <Route path="/sozlesme/:id" element={<SozlesmeDetay />} />
               <Route path="/sozlesme/:id/duzenle" element={<SozlesmeForm />} />
               <Route path="/hakedis" element={<HakedisPage />} />
               <Route path="/hakedis/yeni" element={<HakedisForm />} />
               <Route path="/hakedis/:id" element={<HakedisForm />} />
-              <Route path="/hakedis/:id/duzenle" element={<HakedisForm />} /> */}
+              <Route path="/hakedis/:id/duzenle" element={<HakedisForm />} />
+              */}
               <Route path="/birim-fiyatlar" element={<BirimFiyatlar />} />
+              {/* <Route path="/metraj" element={<Metraj />} /> */}
               <Route path="/yesilDefter" element={<YesilDefterList />} />
               <Route path="/yesilDefter/yeni" element={<YesilDefterForm />} />
               <Route path="/yesilDefter/duzenle/:id" element={<YesilDefterForm />} />
               <Route path="/atasman" element={<Atasman />} />
-              <Route path="/metraj" element={<Metraj />} />
               <Route path="/kesinti" element={<Kesinti />} />
               <Route path="/taseron-yonetimi" element={<TaseronYonetimi />} />
               <Route path="/atasmanlar" element={<Atasmanlar />} />

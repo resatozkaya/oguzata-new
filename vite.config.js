@@ -1,25 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'remove-console',
-      transform(code, id) {
-        if (process.env.NODE_ENV === 'production') {
-          // console.log hariç tüm console methodlarını kaldır
-          return {
-            code: code.replace(/console\.(info|debug|warn|trace|log)\((.*?)\);?/g, ''),
-            map: null
-          }
-        }
-      }
-    }
-  ],
+  plugins: [react()],
   server: {
-    port: 5173,
+    port: 3000,
     open: true,
     cors: true,
     headers: {
@@ -34,12 +21,25 @@ export default defineConfig({
     }
   },
   build: {
+    sourcemap: false,
     minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true,
         drop_debugger: true
       }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        }
+      }
     }
+  },
+  esbuild: {
+    pure: ['console.log']
   }
 })
