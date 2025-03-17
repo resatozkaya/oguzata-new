@@ -10,13 +10,9 @@ export const usePermission = (requiredPermission, siteId = null) => {
   useEffect(() => {
     const checkPermission = async () => {
       try {
-        console.log('Checking permission:', { requiredPermission, siteId });
-        
+        // Kullanıcı bilgilerini al
         const currentUser = await getCurrentUser();
-        console.log('Current user:', currentUser);
-        
         if (!currentUser) {
-          console.log('No user found');
           setHasPermission(false);
           setLoading(false);
           return;
@@ -24,43 +20,39 @@ export const usePermission = (requiredPermission, siteId = null) => {
 
         // YÖNETİM rolüne sahip kullanıcılar tüm yetkilere sahiptir
         if (currentUser.role === 'YÖNETİM' || currentUser.role === 'admin') {
-          console.log('User has admin role');
           setHasPermission(true);
           setLoading(false);
           return;
         }
 
-        // Şantiye bazlı yetki kontrolü
-        if (siteId) {
-          console.log('Checking site permissions');
-          const sitePermissions = await getUserSitePermissions(currentUser.id, siteId);
-          console.log('Site permissions:', sitePermissions);
-          
-          if (sitePermissions && sitePermissions.length > 0) {
-            const hasSitePermission = sitePermissions.some(
-              sp => sp.permissions.includes(requiredPermission)
-            );
-            console.log('Has site permission:', hasSitePermission);
+        // Rol izinlerini kontrol et
+        const rolePermissions = await getRolePermissions(currentUser.uid);
+        const hasRolePermission = rolePermissions.includes(requiredPermission);
 
-            if (hasSitePermission) {
-              setHasPermission(true);
-              setLoading(false);
-              return;
-            }
+        if (hasRolePermission) {
+          setHasPermission(true);
+          setLoading(false);
+          return;
+        }
+
+        // Şantiye izinlerini kontrol et
+        if (siteId) {
+          const sitePermissions = await getUserSitePermissions(currentUser.uid, siteId);
+          const hasPermission = sitePermissions.some(sp => sp.permissions.includes(requiredPermission));
+          
+          if (hasPermission) {
+            setHasPermission(true);
+            setLoading(false);
+            return;
           }
         }
 
-        // Genel rol bazlı yetki kontrolü
-        console.log('Checking role permissions');
-        const rolePermissions = await getRolePermissions(currentUser.role);
-        console.log('Role permissions:', rolePermissions);
-        
-        const hasRequiredPermission = rolePermissions.some(
-          rp => rp.permissionId === requiredPermission
-        );
-        console.log('Has role permission:', hasRequiredPermission);
-
-        setHasPermission(hasRequiredPermission);
+        // Görüntüleme yetkisi için varsayılan olarak true
+        if (requiredPermission.endsWith('_VIEW')) {
+          setHasPermission(true);
+        } else {
+          setHasPermission(false);
+        }
         setLoading(false);
       } catch (error) {
         console.error('Permission check error:', error);
