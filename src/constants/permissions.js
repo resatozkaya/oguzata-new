@@ -33,6 +33,7 @@ export const PAGE_PERMISSIONS = {
     UPDATE: 'personel_update',
     DELETE: 'personel_delete',
     MANAGE: 'personel_manage',
+    MANAGE_PERMISSIONS: 'personel_manage_permissions', // Personel yetkilerini yönetme
   },
 
   // Şantiye Yönetimi
@@ -42,6 +43,7 @@ export const PAGE_PERMISSIONS = {
     UPDATE: 'santiye_update',
     DELETE: 'santiye_delete',
     MANAGE: 'santiye_manage',
+    MANAGE_PERMISSIONS: 'santiye_manage_permissions', // Şantiye yetkilerini yönetme
   },
 
   // Hakediş Yönetimi
