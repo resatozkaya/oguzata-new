@@ -1,70 +1,29 @@
-import { useState, useEffect } from 'react';
-import { getRolePermissions } from '../services/roles';
-import { getCurrentUser } from '../services/auth';
-import { getUserSitePermissions } from '../services/sitePermissions';
+import { useAuth } from '../contexts/AuthContext';
 
-export const usePermission = (requiredPermission, siteId = null) => {
-  const [hasPermission, setHasPermission] = useState(false);
-  const [loading, setLoading] = useState(true);
+export const usePermission = () => {
+  const { currentUser } = useAuth();
 
-  useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        // Kullanıcı bilgilerini al
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-          setHasPermission(false);
-          setLoading(false);
-          return;
-        }
+  const hasPermission = (permission) => {
+    console.log('Checking permission:', permission);
+    console.log('Current user:', currentUser);
+    console.log('User role:', currentUser?.role);
+    console.log('User permissions:', currentUser?.permissions);
 
-        // YÖNETİM rolüne sahip kullanıcılar tüm yetkilere sahiptir
-        if (currentUser.role === 'YÖNETİM' || currentUser.role === 'admin') {
-          setHasPermission(true);
-          setLoading(false);
-          return;
-        }
+    if (!currentUser) {
+      console.log('No user logged in');
+      return false;
+    }
 
-        // Rol izinlerini kontrol et
-        const rolePermissions = await getRolePermissions(currentUser.uid);
-        const hasRolePermission = rolePermissions.includes(requiredPermission);
+    // YÖNETİM rolü tüm yetkilere sahip
+    if (currentUser.role === 'YÖNETİM') {
+      console.log('User has YÖNETİM role, granting all permissions');
+      return true;
+    }
 
-        if (hasRolePermission) {
-          setHasPermission(true);
-          setLoading(false);
-          return;
-        }
+    const hasRequiredPermission = currentUser.permissions?.includes(permission);
+    console.log('Has required permission:', hasRequiredPermission);
+    return hasRequiredPermission;
+  };
 
-        // Şantiye izinlerini kontrol et
-        if (siteId) {
-          const sitePermissions = await getUserSitePermissions(currentUser.uid, siteId);
-          const hasPermission = sitePermissions.some(sp => sp.permissions.includes(requiredPermission));
-          
-          if (hasPermission) {
-            setHasPermission(true);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Görüntüleme yetkisi için varsayılan olarak true
-        if (requiredPermission.endsWith('_VIEW')) {
-          setHasPermission(true);
-        } else {
-          setHasPermission(false);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Permission check error:', error);
-        setHasPermission(false);
-        setLoading(false);
-      }
-    };
-
-    checkPermission();
-  }, [requiredPermission, siteId]);
-
-  return { hasPermission, loading };
+  return hasPermission;
 };
-
-export default usePermission;

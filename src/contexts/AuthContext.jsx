@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut, sendPasswordResetEmail, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { getDoc, doc, updateDoc } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { USER_ROLES } from '../constants/permissions';
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export const useAuth = () => {
   return useContext(AuthContext);
@@ -11,7 +12,8 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userPermissions, setUserPermissions] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -20,39 +22,68 @@ export const AuthProvider = ({ children }) => {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            console.log('User data from Firestore:', userData); // Debug için eklendi
             
             // Eğer name ve surname yoksa, displayName'den ayırıyoruz
             if (!userData.name || !userData.surname) {
               const [firstName, ...lastNameParts] = (userData.displayName || user.displayName || '').split(' ');
               const lastName = lastNameParts.join(' ');
               
-              // Firestore'u güncelle, role'ü değiştirmeden
+              // Firestore'u güncelle
               await updateDoc(doc(db, 'users', user.uid), {
                 name: firstName || '',
                 surname: lastName || '',
+                role: userData.role || USER_ROLES.USER,
+                permissions: userData.permissions || [],
                 updatedAt: new Date()
               });
 
-              // Context'i güncelle, mevcut role'ü koru
-              setCurrentUser({
-                id: user.uid,
-                ...userData,
+              // Context'i güncelle
+              const currentUser = {
+                uid: user.uid,
+                email: user.email,
                 name: firstName || '',
-                surname: lastName || ''
-              });
+                surname: lastName || '',
+                role: userData.role || USER_ROLES.USER,
+                permissions: userData.permissions || []
+              };
+              console.log('Updated currentUser:', currentUser); // Debug için eklendi
+              setCurrentUser(currentUser);
             } else {
-              setCurrentUser({
-                id: user.uid,
-                ...userData
-              });
+              // Rol kontrolü ve düzeltmesi
+              let userRole = userData.role;
+              if (userRole === 'YONETIM' || userRole === 'admin') {
+                userRole = USER_ROLES.ADMIN;
+                // Firestore'u güncelle
+                await updateDoc(doc(db, 'users', user.uid), {
+                  role: USER_ROLES.ADMIN,
+                  permissions: userData.permissions || [],
+                  updatedAt: new Date()
+                });
+              }
+
+              const currentUser = {
+                uid: user.uid,
+                email: user.email,
+                ...userData,
+                role: userRole,
+                permissions: userData.permissions || []
+              };
+              console.log('Current user with permissions:', currentUser); // Debug için eklendi
+              setCurrentUser(currentUser);
             }
+
+            // Kullanıcı yetkilerini güncelle
+            setUserPermissions(userData.permissions || []);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
           setCurrentUser(null);
+          setUserPermissions([]);
         }
       } else {
         setCurrentUser(null);
+        setUserPermissions([]);
       }
       setLoading(false);
     });
@@ -60,53 +91,44 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      setCurrentUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
-    }
-  };
-
-  const resetPassword = async (email) => {
-    if (!email) {
-      throw new Error('Email is required');
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      console.error('Password reset error:', error);
-      throw error;
-    }
-  };
-
-  const updatePassword = async (newPassword) => {
-    if (!auth.currentUser) {
-      throw new Error('Kullanıcı oturum açmış olmalıdır');
-    }
-
-    try {
-      await firebaseUpdatePassword(auth.currentUser, newPassword);
-    } catch (error) {
-      console.error('Şifre güncelleme hatası:', error);
-      throw error;
-    }
-  };
-
   const value = {
     currentUser,
-    setCurrentUser,
-    logout,
-    resetPassword,
-    updatePassword,
-    loading
+    userPermissions,
+    loading,
+    logout: async () => {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Logout error:', error);
+        throw error;
+      }
+    },
+    resetPassword: async (email) => {
+      try {
+        await sendPasswordResetEmail(auth, email);
+      } catch (error) {
+        console.error('Reset password error:', error);
+        throw error;
+      }
+    },
+    updatePassword: async (currentPassword, newPassword) => {
+      try {
+        const user = auth.currentUser;
+        const credential = EmailAuthProvider.credential(user.email, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+        await firebaseUpdatePassword(user, newPassword);
+      } catch (error) {
+        console.error('Update password error:', error);
+        throw error;
+      }
+    }
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
+
+export default AuthProvider;

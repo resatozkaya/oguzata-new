@@ -6,6 +6,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true, // 0.0.0.0 üzerinden dinle
     port: 3000,
     open: true,
     cors: true,

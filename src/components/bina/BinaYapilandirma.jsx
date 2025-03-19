@@ -17,6 +17,7 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { binaService } from '../../services/binaService';
 import { useSantiye } from '../../contexts/SantiyeContext';
+import { usePermission } from '../../hooks/usePermission';
 
 // EditDialog bileşeni
 const EditDialog = ({ open, item, onClose, onSave }) => {
@@ -82,6 +83,7 @@ const BinaYapilandirma = ({
   onSave 
 }) => {
   const { setSeciliSantiye } = useSantiye();
+  const hasPermission = usePermission();
   const [yukleniyor, setYukleniyor] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -93,6 +95,14 @@ const BinaYapilandirma = ({
   });
   const [editingItem, setEditingItem] = useState(null);
 
+  // Yetki kontrolü
+  const canManageBinaYapisi = hasPermission('eksiklik_bina_yapisi');
+
+  // Yetkisi olmayan kullanıcılar için null döndür
+  if (!canManageBinaYapisi) {
+    return null;
+  }
+
   // Bina yapısını yükle
   useEffect(() => {
     if (binaYapisi?.bloklar?.[0]) {
@@ -102,6 +112,10 @@ const BinaYapilandirma = ({
 
   // Kat ekleme fonksiyonu
   const katEkle = (tip) => {
+    if (!canManageBinaYapisi) {
+      return;
+    }
+
     const yeniKatlar = [...yerelYapi.bloklar[0].katlar];
     
     // Kat numarasını belirle
@@ -145,6 +159,10 @@ const BinaYapilandirma = ({
 
   // Kat silme fonksiyonu
   const katSil = (katIndex) => {
+    if (!canManageBinaYapisi) {
+      return;
+    }
+
     const yeniKatlar = yerelYapi.bloklar[0].katlar.filter((_, index) => index !== katIndex);
     setYerelYapi({
       bloklar: [{
@@ -260,7 +278,7 @@ const BinaYapilandirma = ({
 
   // Değişiklikleri kaydet
   const handleItemKaydet = (yeniDeger) => {
-    if (!yeniDeger || !editingItem) return;
+    if (!canManageBinaYapisi || !yeniDeger || !editingItem) return;
 
     try {
       const yeniKatlar = [...yerelYapi.bloklar[0].katlar];
@@ -329,30 +347,34 @@ const BinaYapilandirma = ({
                    `${kat.no}. Kat`}
                 </Typography>
                 <Box>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => daireEkle(katIndex)}
-                    sx={{ mr: 1 }}
-                  >
-                    Daire Ekle
-                  </Button>
-                  <IconButton 
-                    size="small"
-                    color="primary"
-                    onClick={() => handleItemClick('KAT', kat, katIndex)}
-                    sx={{ mr: 0.5 }}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton 
-                    size="small"
-                    color="error"
-                    onClick={() => katSil(katIndex)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  {canManageBinaYapisi && (
+                    <>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={() => daireEkle(katIndex)}
+                        sx={{ mr: 1 }}
+                      >
+                        Daire Ekle
+                      </Button>
+                      <IconButton 
+                        size="small"
+                        color="primary"
+                        onClick={() => handleItemClick('KAT', kat, katIndex)}
+                        sx={{ mr: 0.5 }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton 
+                        size="small"
+                        color="error"
+                        onClick={() => katSil(katIndex)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </>
+                  )}
                 </Box>
               </Box>
 
@@ -381,20 +403,24 @@ const BinaYapilandirma = ({
                         display: 'flex',
                         gap: 0.5
                       }}>
-                        <IconButton
-                          size="small"
-                          sx={{ bgcolor: 'background.paper' }}
-                          onClick={() => handleItemClick('DAIRE', daire, daireIndex, katIndex)}
-                        >
-                          <EditIcon fontSize="small" color="primary" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          sx={{ bgcolor: 'background.paper' }}
-                          onClick={() => daireSil(katIndex, daireIndex)}
-                        >
-                          <DeleteIcon fontSize="small" color="error" />
-                        </IconButton>
+                        {canManageBinaYapisi && (
+                          <IconButton
+                            size="small"
+                            sx={{ bgcolor: 'background.paper' }}
+                            onClick={() => handleItemClick('DAIRE', daire, daireIndex, katIndex)}
+                          >
+                            <EditIcon fontSize="small" color="primary" />
+                          </IconButton>
+                        )}
+                        {canManageBinaYapisi && (
+                          <IconButton
+                            size="small"
+                            sx={{ bgcolor: 'background.paper' }}
+                            onClick={() => daireSil(katIndex, daireIndex)}
+                          >
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        )}
                       </Box>
                       <Typography>{daire.no}</Typography>
                     </Paper>
@@ -413,51 +439,57 @@ const BinaYapilandirma = ({
           borderTop: '1px solid rgba(255, 255, 255, 0.12)',
           bgcolor: '#1e1e1e'
         }}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => katEkle('NORMAL')}
-            sx={{ 
-              flex: 1,
-              py: 1.5,
-              bgcolor: '#2c2c2c',
-              '&:hover': {
-                bgcolor: '#383838'
-              }
-            }}
-          >
-            Normal Kat Ekle
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => katEkle('ZEMIN')}
-            sx={{ 
-              flex: 1,
-              py: 1.5,
-              bgcolor: '#2c2c2c',
-              '&:hover': {
-                bgcolor: '#383838'
-              }
-            }}
-          >
-            Zemin Kat Ekle
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => katEkle('BODRUM')}
-            sx={{ 
-              flex: 1,
-              py: 1.5,
-              bgcolor: '#2c2c2c',
-              '&:hover': {
-                bgcolor: '#383838'
-              }
-            }}
-          >
-            Bodrum Kat Ekle
-          </Button>
+          {canManageBinaYapisi && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => katEkle('NORMAL')}
+              sx={{ 
+                flex: 1,
+                py: 1.5,
+                bgcolor: '#2c2c2c',
+                '&:hover': {
+                  bgcolor: '#383838'
+                }
+              }}
+            >
+              Normal Kat Ekle
+            </Button>
+          )}
+          {canManageBinaYapisi && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => katEkle('ZEMIN')}
+              sx={{ 
+                flex: 1,
+                py: 1.5,
+                bgcolor: '#2c2c2c',
+                '&:hover': {
+                  bgcolor: '#383838'
+                }
+              }}
+            >
+              Zemin Kat Ekle
+            </Button>
+          )}
+          {canManageBinaYapisi && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => katEkle('BODRUM')}
+              sx={{ 
+                flex: 1,
+                py: 1.5,
+                bgcolor: '#2c2c2c',
+                '&:hover': {
+                  bgcolor: '#383838'
+                }
+              }}
+            >
+              Bodrum Kat Ekle
+            </Button>
+          )}
         </Box>
       </DialogContent>
 

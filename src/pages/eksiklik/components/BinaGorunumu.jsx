@@ -3,15 +3,18 @@ import {
   Box,
   Paper,
   Typography,
-  Grid,
   Badge,
   Tooltip
 } from '@mui/material';
 
 const BinaGorunumu = ({ binaYapisi, eksiklikler, seciliDaire, onDaireClick }) => {
-  // Dairenin eksiklik sayısını hesapla
-  const getEksiklikSayisi = (daireNo) => {
-    return eksiklikler.filter(e => e.daire === daireNo).length;
+  // Dairenin eksiklik sayılarını hesapla
+  const getEksiklikSayilari = (daireNo) => {
+    const daireEksiklikleri = eksiklikler.filter(e => e.daire === daireNo);
+    return {
+      tamamlanan: daireEksiklikleri.filter(e => e.durum === 'TAMAMLANDI').length,
+      devamEden: daireEksiklikleri.filter(e => e.durum !== 'TAMAMLANDI').length
+    };
   };
 
   // Dairenin durumuna göre renk belirle
@@ -24,130 +27,147 @@ const BinaGorunumu = ({ binaYapisi, eksiklikler, seciliDaire, onDaireClick }) =>
   };
 
   return (
-    <Box sx={{ px: 2 }}>
-      {binaYapisi?.bloklar?.[0]?.katlar?.map((kat, index) => (
+    <Box 
+      sx={{ 
+        px: 2,
+        height: 'calc(100vh - 250px)', 
+        overflowY: 'auto', 
+        '&::-webkit-scrollbar': {
+          width: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#888',
+          borderRadius: '4px',
+          '&:hover': {
+            background: '#666',
+          },
+        },
+      }}
+    >
+      {binaYapisi?.bloklar?.[0]?.katlar?.map((kat) => (
         <Box
           key={kat.no}
           sx={{
-            mb: 3,
+            mb: 2,
             position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              left: -16,
-              top: 8,
-              bottom: 8,
-              width: 4,
-              bgcolor: kat.tip === 'ZEMIN' ? '#ffd54f' : '#90caf9',
-              borderRadius: 2,
-              boxShadow: '0 0 8px rgba(0,0,0,0.1)'
-            }
           }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              bgcolor: kat.tip === 'ZEMIN' ? 'rgba(255, 213, 79, 0.08)' : 'rgba(144, 202, 249, 0.08)',
-              border: '1px solid',
-              borderColor: kat.tip === 'ZEMIN' ? 'rgba(255, 213, 79, 0.2)' : 'rgba(144, 202, 249, 0.2)',
-              borderRadius: 2,
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 2,
-                color: kat.tip === 'ZEMIN' ? '#f57c00' : '#1976d2',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}
-            >
-              {kat.tip === 'ZEMIN' ? 'Zemin Kat' : `${kat.no}. Kat`}
+          {/* Kat Başlığı */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 1,
+            borderBottom: '2px solid',
+            borderColor: kat.tip === 'ZEMIN' ? 'warning.main' : 'primary.main',
+            pb: 0.5
+          }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              {kat.no}. Kat
             </Typography>
+          </Box>
 
-            <Grid container spacing={2}>
-              {kat.daireler?.map((daire) => (
-                <Grid item xs={6} sm={4} md={3} key={daire.no}>
-                  <Badge
-                    badgeContent={getEksiklikSayisi(daire.no)}
-                    color="error"
-                    max={99}
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        fontSize: '0.8rem',
-                        height: '20px',
-                        minWidth: '20px',
-                        bgcolor: 'error.light',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }
+          {/* Daireler */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap',
+            gap: 2
+          }}>
+            {kat.daireler?.map((daire) => {
+              const { tamamlanan, devamEden } = getEksiklikSayilari(daire.no);
+              
+              return (
+                <Paper
+                  key={daire.no}
+                  elevation={1}
+                  onClick={() => onDaireClick(daire.no)}
+                  sx={{
+                    p: 2,
+                    cursor: 'pointer',
+                    position: 'relative',
+                    bgcolor: seciliDaire === daire.no ? 'action.selected' : 'background.paper',
+                    borderLeft: 2,
+                    borderColor: getDaireRengi(daire.no),
+                    minWidth: { xs: '120px', sm: '140px' },
+                    maxWidth: { xs: '120px', sm: '140px' },
+                    height: { xs: '80px', sm: '90px' },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      transform: 'translateY(-2px)',
+                      boxShadow: 2
+                    }
+                  }}
+                >
+                  {/* Badge'ler */}
+                  <Box sx={{ 
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    display: 'flex',
+                    gap: 0.5
+                  }}>
+                    {devamEden > 0 && (
+                      <Box sx={{
+                        minWidth: 20,
+                        height: 20,
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {devamEden}
+                      </Box>
+                    )}
+                    {tamamlanan > 0 && (
+                      <Box sx={{
+                        minWidth: 20,
+                        height: 20,
+                        bgcolor: 'success.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {tamamlanan}
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Daire Bilgisi */}
+                  <Typography 
+                    variant="h6"
+                    align="center"
+                    sx={{ 
+                      fontWeight: 'medium',
+                      fontSize: { xs: '1.1rem', sm: '1.2rem' },
+                      lineHeight: 1.2
                     }}
                   >
-                    <Tooltip title={`${daire.no} Nolu Daire - ${getEksiklikSayisi(daire.no)} Eksiklik`}>
-                      <Paper
-                        onClick={() => onDaireClick(daire.no)}
-                        sx={{
-                          p: 2,
-                          cursor: 'pointer',
-                          bgcolor: 'background.paper',
-                          color: 'text.primary',
-                          textAlign: 'center',
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: seciliDaire === daire.no 
-                            ? 'primary.main'
-                            : 'divider',
-                          minWidth: '100px',
-                          position: 'relative',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: '100%',
-                            height: '100%',
-                            bgcolor: getDaireRengi(daire.no),
-                            opacity: 0.1,
-                            borderRadius: 'inherit',
-                            transition: 'opacity 0.2s'
-                          },
-                          boxShadow: seciliDaire === daire.no 
-                            ? '0 0 0 1px rgba(25, 118, 210, 0.5), 0 2px 4px rgba(0,0,0,0.05)'
-                            : '0 1px 3px rgba(0,0,0,0.05)',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            '&::before': {
-                              opacity: 0.15
-                            },
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
-                          }
-                        }}
-                      >
-                        <Typography 
-                          variant="body1" 
-                          sx={{ 
-                            fontWeight: 500,
-                            color: seciliDaire === daire.no ? 'primary.main' : 'text.primary'
-                          }}
-                        >
-                          {daire.no}
-                        </Typography>
-                      </Paper>
-                    </Tooltip>
-                  </Badge>
-                </Grid>
-              ))}
-            </Grid>
-          </Paper>
+                    {daire.no || daire.tip}
+                  </Typography>
+                </Paper>
+              );
+            })}
+          </Box>
         </Box>
       ))}
     </Box>
   );
 };
 
-export default BinaGorunumu; 
+export default BinaGorunumu;

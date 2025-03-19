@@ -5,22 +5,35 @@ import {
   Button,
   Grid,
   Paper,
-  Divider,
-  CircularProgress
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   Add as AddIcon,
-  GetApp as ExportIcon
+  GetApp as ExportIcon,
+  Security as SecurityIcon,
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
+  Error as ErrorIcon,
+  Fullscreen as FullscreenIcon,
+  Close as CloseIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { enqueueSnackbar } from 'notistack';
 import { useSantiye } from '../../contexts/SantiyeContext';
 import { binaService } from '../../services/binaService';
+import { usePermission } from '../../hooks/usePermission';
+import { PAGE_PERMISSIONS } from '../../constants/permissions';
 import BinaGorunumu from './components/BinaGorunumu';
 import EksiklikIstatistikKartlari from './components/EksiklikIstatistikKartlari';
 import EksiklikListesi from './components/EksiklikListesi';
 import EksiklikFiltrele from './components/EksiklikFiltrele';
 import EksiklikFormModal from './components/EksiklikFormModal';
 import ExcelJS from 'exceljs';
+import RolYetkilendirme from './components/RolYetkilendirme';
 
 const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   const [eksiklikler, setEksiklikler] = useState([]);
@@ -34,10 +47,32 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   });
   const [formModalAcik, setFormModalAcik] = useState(false);
   const [seciliEksiklik, setSeciliEksiklik] = useState(null);
-  const { seciliSantiye, seciliBlok, setSeciliSantiye, setSeciliBlok } = useSantiye(); 
+  const [yetkiModalAcik, setYetkiModalAcik] = useState(false);
+  const { seciliSantiye, seciliBlok } = useSantiye(); 
   const [seciliDaire, setSeciliDaire] = useState(null);
   const [taseronlar, setTaseronlar] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(false);
+  // Tam ekran state'leri
+  const [binaGorunumuTamEkran, setBinaGorunumuTamEkran] = useState(false);
+  const [eksikliklerTamEkran, setEksikliklerTamEkran] = useState(false);
+  const hasPermission = usePermission();
+
+  // Debug için yetki kontrollerini logla
+  React.useEffect(() => {
+    console.log('Checking permissions:');
+    console.log('eksiklik_bina_yapisi:', hasPermission('eksiklik_bina_yapisi'));
+    console.log('eksiklik_blok_yonetimi:', hasPermission('eksiklik_blok_yonetimi'));
+    console.log('eksiklik_create:', hasPermission('eksiklik_create'));
+    console.log('eksiklik_view:', hasPermission('eksiklik_view'));
+    console.log('eksiklik_manage:', hasPermission('eksiklik_manage'));
+  }, [hasPermission]);
+
+  // Buton görünürlük kontrolleri
+  const canManageBinaYapisi = hasPermission('eksiklik_bina_yapisi');
+  const canManageBlok = hasPermission('eksiklik_blok_yonetimi');
+  const canCreateEksiklik = hasPermission('eksiklik_create');
+  const canViewEksiklik = hasPermission('eksiklik_view');
+  const canManageEksiklik = hasPermission('eksiklik_manage');
 
   useEffect(() => {
     const yukle = async () => {
@@ -244,7 +279,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
         daireBaslik.getCell(1).value = `${daireInfo.type === 'apartment' ? 'Daire' : ''} ${daireNo}`;
         daireBaslik.getCell(1).style = {
-          font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } },
+          font: { bold: true, size: 12 },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } },
           alignment: { horizontal: 'left', vertical: 'middle' },
           border: {
@@ -435,7 +470,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
 
   const istatistikler = {
     toplam: eksiklikler.length,
-    yeni: eksiklikler.filter(e => e.durum === 'YENI').length,
+    yeni: eksiklikler.filter(e => e.durum === 'YENİ').length,
     devamEden: eksiklikler.filter(e => e.durum === 'DEVAM_EDIYOR').length,
     tamamlandi: eksiklikler.filter(e => e.durum === 'TAMAMLANDI').length,
     kritik: eksiklikler.filter(e => e.oncelik === 'KRITIK').length
@@ -480,106 +515,200 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         <Typography variant="body1" color="text.secondary" align="center">
           Lütfen önce bir şantiye ve blok seçin
         </Typography>
-      ) : yukleniyor ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
-        </Box>
       ) : (
         <>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <EksiklikIstatistikKartlari istatistikler={istatistikler} />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ 
-                p: 2, 
-                height: '80vh',
-                display: 'flex', 
-                flexDirection: 'column' 
-              }}>
-                <Typography variant="h6" gutterBottom>
-                  Bina Görünümü
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Box sx={{ 
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: 'scroll',
-                  pr: 1,
-                  '&::-webkit-scrollbar': {
-                    width: '10px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#f1f1f1',
-                    borderRadius: '8px',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: '#888',
-                    borderRadius: '8px',
-                    '&:hover': {
-                      background: '#666',
-                    },
-                  },
-                }}>
-                  <BinaGorunumu
-                    binaYapisi={binaYapisi}
-                    eksiklikler={eksiklikler}
-                    seciliDaire={seciliDaire}
-                    onDaireClick={handleDaireSecim}
-                  />
+          {/* Başlık ve Butonlar */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5">
+              {seciliSantiye.ad} {seciliBlok.ad ? `- ${seciliBlok.ad} Blok` : ''} - Eksiklik Yönetimi
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {/* Yeni Eksiklik Butonu */}
+              {canCreateEksiklik && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setSeciliEksiklik(null);
+                    setFormModalAcik(true);
+                  }}
+                >
+                  YENİ EKSİKLİK
+                </Button>
+              )}
+
+              {/* Excel'e Aktar Butonu */}
+              {canViewEksiklik && (
+                <Button
+                  variant="outlined"
+                  startIcon={<ExportIcon />}
+                  onClick={handleExcelExport}
+                >
+                  EXCEL'E AKTAR
+                </Button>
+              )}
+            </Box>
+          </Box>
+
+          {/* İstatistik Kartları */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <AssignmentIcon />
+                <Box>
+                  <Typography variant="h4">{eksiklikler.length}</Typography>
+                  <Typography variant="body2">Toplam Eksiklik</Typography>
                 </Box>
               </Paper>
             </Grid>
 
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'info.main',
+                  color: 'info.contrastText',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <ScheduleIcon />
+                <Box>
+                  <Typography variant="h4">
+                    {eksiklikler.filter(e => e.durum === 'DEVAM_EDIYOR').length}
+                  </Typography>
+                  <Typography variant="body2">Devam Eden</Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'success.main',
+                  color: 'success.contrastText',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <CheckCircleIcon />
+                <Box>
+                  <Typography variant="h4">
+                    {eksiklikler.filter(e => e.durum === 'TAMAMLANDI').length}
+                  </Typography>
+                  <Typography variant="body2">Tamamlanan</Typography>
+                </Box>
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: 'error.main',
+                  color: 'error.contrastText',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <ErrorIcon />
+                <Box>
+                  <Typography variant="h4">
+                    {eksiklikler.filter(e => e.oncelik === 'KRITIK').length}
+                  </Typography>
+                  <Typography variant="body2">Kritik</Typography>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Ana İçerik */}
+          <Grid container spacing={3}>
+            {/* Bina Görünümü */}
             <Grid item xs={12} md={6}>
-              <Paper sx={{ 
-                p: 2, 
-                height: '80vh',
-                display: 'flex', 
-                flexDirection: 'column' 
-              }}>
-                <Typography variant="h6" gutterBottom>
-                  Eksiklikler
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                
+              <Paper sx={{ p: 2, position: 'relative' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  mb: 2 
+                }}>
+                  <Typography variant="h6">Bina Görünümü</Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {/* Yetkileri Düzenle Butonu */}
+                    {canManageEksiklik && (
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        startIcon={<SecurityIcon />}
+                        onClick={() => setYetkiModalAcik(true)}
+                      >
+                        YETKİLERİ DÜZENLE
+                      </Button>
+                    )}
+                    
+                    {/* Tam Ekran Butonu */}
+                    <IconButton
+                      onClick={() => setBinaGorunumuTamEkran(true)}
+                      size="small"
+                    >
+                      <FullscreenIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+
+                <BinaGorunumu
+                  binaYapisi={binaYapisi}
+                  eksiklikler={eksiklikler}
+                  seciliDaire={seciliDaire}
+                  onDaireClick={handleDaireSecim}
+                />
+              </Paper>
+            </Grid>
+
+            {/* Eksiklikler */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, position: 'relative' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">Eksiklikler</Typography>
+                  <IconButton 
+                    onClick={() => setEksikliklerTamEkran(true)}
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <FullscreenIcon />
+                  </IconButton>
+                </Box>
                 <EksiklikFiltrele
                   filtreler={filtreler}
                   setFiltreler={setFiltreler}
                   taseronlar={taseronlar}
                 />
-
-                <Box sx={{ 
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: 'scroll',
-                  mt: 2,
-                  pr: 1,
-                  '&::-webkit-scrollbar': {
-                    width: '10px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#f1f1f1',
-                    borderRadius: '8px',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: '#888',
-                    borderRadius: '8px',
-                    '&:hover': {
-                      background: '#666',
-                    },
-                  },
-                }}>
-                  <EksiklikListesi
-                    eksiklikler={filtrelenmisEksiklikler}
-                    onDuzenle={(eksiklik) => {
-                      setSeciliEksiklik(eksiklik);
-                      setFormModalAcik(true);
-                    }}
-                    onSil={handleEksiklikSil}
-                    taseronlar={taseronlar}
-                  />
-                </Box>
+                <EksiklikListesi
+                  eksiklikler={filtrelenmisEksiklikler}
+                  onDuzenle={(eksiklik) => {
+                    setSeciliEksiklik(eksiklik);
+                    setFormModalAcik(true);
+                  }}
+                  onSil={handleEksiklikSil}
+                  taseronlar={taseronlar}
+                />
               </Paper>
             </Grid>
           </Grid>
@@ -588,26 +717,6 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
             <Typography variant="h4">
               {seciliBlok.ad} Blok - Eksiklik Yönetimi
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={() => {
-                  setSeciliEksiklik(null);
-                  setFormModalAcik(true);
-                }}
-              >
-                Yeni Eksiklik
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<ExportIcon />}
-                onClick={handleExcelExport}
-              >
-                Excel'e Aktar
-              </Button>
-            </Box>
           </Box>
 
           <EksiklikFormModal
@@ -618,10 +727,77 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
             taseronlar={taseronlar}
             binaYapisi={binaYapisi}
           />
+
+          {/* Bina Görünümü Tam Ekran Dialog */}
+          <Dialog
+            fullScreen
+            open={binaGorunumuTamEkran}
+            onClose={() => setBinaGorunumuTamEkran(false)}
+          >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">Bina Görünümü</Typography>
+              <IconButton
+                onClick={() => setBinaGorunumuTamEkran(false)}
+                sx={{ color: 'grey.500' }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers sx={{ p: 3 }}>
+              <BinaGorunumu
+                binaYapisi={binaYapisi}
+                eksiklikler={eksiklikler}
+                seciliDaire={seciliDaire}
+                onDaireClick={handleDaireSecim}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* Eksiklikler Tam Ekran Dialog */}
+          <Dialog
+            fullScreen
+            open={eksikliklerTamEkran}
+            onClose={() => setEksikliklerTamEkran(false)}
+          >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">Eksiklikler</Typography>
+              <IconButton
+                onClick={() => setEksikliklerTamEkran(false)}
+                sx={{ color: 'grey.500' }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent dividers sx={{ p: 3 }}>
+              <EksiklikFiltrele
+                filtreler={filtreler}
+                setFiltreler={setFiltreler}
+                taseronlar={taseronlar}
+              />
+              <EksiklikListesi
+                eksiklikler={filtrelenmisEksiklikler}
+                onDuzenle={(eksiklik) => {
+                  setSeciliEksiklik(eksiklik);
+                  setFormModalAcik(true);
+                }}
+                onSil={handleEksiklikSil}
+                taseronlar={taseronlar}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* Yetki Modal */}
+          <RolYetkilendirme
+            open={yetkiModalAcik}
+            onClose={() => setYetkiModalAcik(false)}
+            modul="EKSIKLIK"
+            santiyeId={seciliSantiye?.id}
+            showTeslimatEkip={showTeslimatEkip}
+          />
         </>
       )}
     </Box>
   );
 };
 
-export default EksiklikYonetimi; 
+export default EksiklikYonetimi;

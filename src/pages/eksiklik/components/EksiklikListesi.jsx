@@ -1,108 +1,190 @@
 import React from 'react';
-import { Card, CardContent, Button } from '@mui/material';
-import { Edit, Trash2 } from 'lucide-react';
-import { DURUM_TIPLERI, ONCELIK_SEVIYELERI } from '@/constants/teslimat';
-
-const formatTarih = (timestamp) => {
-  if (!timestamp) return '-';
-  if (timestamp.toDate) {
-    return timestamp.toDate().toLocaleDateString('tr-TR');
-  }
-  return new Date(timestamp).toLocaleDateString('tr-TR');
-};
+import {
+  Box,
+  Typography,
+  IconButton,
+  Grid,
+  Paper,
+  Chip,
+  Tooltip,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction
+} from '@mui/material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  Schedule as ScheduleIcon
+} from '@mui/icons-material';
+import { format } from 'date-fns';
+import { usePermission } from '../../../contexts/PermissionContext';
+import { PAGE_PERMISSIONS } from '../../../constants/permissions';
 
 const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
-  if (eksiklikler.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        Kayıt bulunamadı..
-      </div>
-    );
-  }
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.UPDATE);
+  const canDelete = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.DELETE);
+
+  // Duruma göre renk ve icon belirle
+  const getDurumBilgisi = (durum) => {
+    switch (durum) {
+      case 'TAMAMLANDI':
+        return { color: 'success', icon: <CheckCircleIcon />, label: 'Tamamlandı' };
+      case 'DEVAM_EDIYOR':
+        return { color: 'warning', icon: <ScheduleIcon />, label: 'Devam Ediyor' };
+      case 'YENI':
+        return { color: 'info', icon: <WarningIcon />, label: 'Yeni' };
+      default:
+        return { color: 'default', icon: <ErrorIcon />, label: durum };
+    }
+  };
+
+  // Önceliğe göre renk belirle
+  const getOncelikRengi = (oncelik) => {
+    switch (oncelik) {
+      case 'KRITIK':
+        return 'error';
+      case 'NORMAL':
+        return 'warning';
+      case 'DUSUK':
+        return 'info';
+      default:
+        return 'default';
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {eksiklikler.map(eksiklik => (
-        <Card key={eksiklik.id} className="hover:shadow-md transition-all dark:bg-gray-800">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-lg">
-                    {eksiklik.daire} Nolu Daire
-                  </h3>
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 mt-2 text-base">
-                  {eksiklik.aciklama}
-                </p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-3">
-                  {/* Durum */}
-                  <div>
-                    <span className={`px-2 py-1 rounded-md text-sm font-medium
-                      ${eksiklik.durum === 'BEKLEMEDE' ? 'bg-yellow-100 text-yellow-800' :
-                        eksiklik.durum === 'DEVAM_EDIYOR' ? 'bg-blue-100 text-blue-800' :
-                        eksiklik.durum === 'TAMAMLANDI' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'}`}>
-                      {DURUM_TIPLERI[eksiklik.durum]?.label || eksiklik.durum}
-                    </span>
-                  </div>
-                  
-                  {/* Öncelik */}
-                  <div>
-                    <span className={`px-2 py-1 rounded-md text-sm font-medium
-                      ${eksiklik.oncelik === 'DUSUK' ? 'bg-gray-100 text-gray-800' :
-                        eksiklik.oncelik === 'ORTA' ? 'bg-yellow-100 text-yellow-800' :
-                        eksiklik.oncelik === 'YUKSEK' ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'}`}>
-                      {ONCELIK_SEVIYELERI[eksiklik.oncelik]?.label || eksiklik.oncelik}
-                    </span>
-                  </div>
+    <Box
+      sx={{
+        height: 'calc(100vh - 400px)', // Header, filtreler ve diğer alanları çıkarıyoruz
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#888',
+          borderRadius: '4px',
+          '&:hover': {
+            background: '#666',
+          },
+        },
+      }}
+    >
+      <Grid container spacing={2}>
+        {eksiklikler.map((eksiklik) => {
+          const durumBilgisi = getDurumBilgisi(eksiklik.durum);
+          
+          return (
+            <Grid item xs={12} sm={6} md={6} lg={4} key={eksiklik.id}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 2,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  borderRadius: 2,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                {/* Üst Bilgi Alanı */}
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                      {eksiklik.daire} Nolu Daire
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      {format(new Date(eksiklik.olusturmaTarihi), 'dd.MM.yyyy')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {canEdit && (
+                      <Tooltip title="Düzenle">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => onDuzenle(eksiklik)}
+                          sx={{ color: 'primary.main' }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {canDelete && (
+                      <Tooltip title="Sil">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => {
+                            if (window.confirm('Bu eksikliği silmek istediğinizden emin misiniz?')) {
+                              onSil(eksiklik.id);
+                            }
+                          }}
+                          sx={{ color: 'error.main' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                </Box>
 
-                  {/* Taşeron */}
-                  <div>
-                    <span className={`px-2 py-1 rounded-md text-sm font-medium ${
-                      eksiklik.taseron ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {eksiklik.taseron || 'Belirtilmemiş'}
-                    </span>
-                  </div>
+                {/* Eksiklik Detayları */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {eksiklik.aciklama}
+                  </Typography>
+                </Box>
 
-                </div>
-
-                <span className="text-sm text-gray-500 dark:text-gray-400 block mt-3">
-                  {formatTarih(eksiklik.olusturmaTarihi)}
-                </span>
-              </div>
-
-              <div className="flex gap-2 ml-4">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
-                  onClick={() => onDuzenle(eksiklik)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  className="bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
-                  onClick={() => {
-                    if (window.confirm('Bu eksikliği silmek istediğinizden emin misiniz?')) {
-                      onSil(eksiklik.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+                {/* Alt Bilgi Alanı */}
+                <Box sx={{ 
+                  mt: 2, 
+                  pt: 2, 
+                  borderTop: 1, 
+                  borderColor: 'divider',
+                  display: 'flex',
+                  gap: 1,
+                  flexWrap: 'wrap'
+                }}>
+                  <Chip
+                    icon={durumBilgisi.icon}
+                    label={durumBilgisi.label}
+                    color={durumBilgisi.color}
+                    size="small"
+                  />
+                  <Chip
+                    label={eksiklik.oncelik}
+                    color={getOncelikRengi(eksiklik.oncelik)}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {eksiklik.taseron && (
+                    <Chip
+                      label={eksiklik.taseron}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+    </Box>
   );
-}; 
+};
 
 export default EksiklikListesi;
