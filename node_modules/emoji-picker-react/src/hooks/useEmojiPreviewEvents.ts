@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { useEffect } from 'react';
 
+import { detectEmojyPartiallyBelowFold } from '../DomUtils/detectEmojyPartiallyBelowFold';
 import { focusElement } from '../DomUtils/focusElement';
 import {
-  buttonFromTarget,
-  originalUnifiedFromEmojiElement,
-  unifiedFromEmojiElement
+  allUnifiedFromEmojiElement,
+  buttonFromTarget
 } from '../DomUtils/selectors';
 import { useBodyRef } from '../components/context/ElementRefContext';
 import { PreviewEmoji } from '../components/footer/Preview';
@@ -42,7 +42,6 @@ export function useEmojiPreviewEvents(
     });
     bodyRef?.addEventListener('blur', onLeave, true);
 
-
     function onEnter(e: FocusEvent) {
       const button = buttonFromTarget(e.target as HTMLElement);
 
@@ -50,8 +49,7 @@ export function useEmojiPreviewEvents(
         return onLeave();
       }
 
-      const unified = unifiedFromEmojiElement(button);
-      const originalUnified = originalUnifiedFromEmojiElement(button);
+      const { unified, originalUnified } = allUnifiedFromEmojiElement(button);
 
       if (!unified || !originalUnified) {
         return onLeave();
@@ -87,10 +85,15 @@ export function useEmojiPreviewEvents(
       const button = buttonFromTarget(e.target as HTMLElement);
 
       if (button) {
+        const belowFoldByPx = detectEmojyPartiallyBelowFold(button, bodyRef);
+        const buttonHeight = button.getBoundingClientRect().height;
+        if (belowFoldByPx < buttonHeight) {
+          return handlePartiallyVisibleElementFocus(button, setPreviewEmoji);
+        }
+
         focusElement(button);
       }
     }
-
 
     return () => {
       bodyRef?.removeEventListener('mouseover', onMouseOver);
@@ -100,4 +103,22 @@ export function useEmojiPreviewEvents(
       bodyRef?.removeEventListener('keydown', onEscape);
     };
   }, [BodyRef, allow, setPreviewEmoji, isMouseDisallowed, allowMouseMove]);
+}
+
+function handlePartiallyVisibleElementFocus(
+  button: HTMLElement,
+  setPreviewEmoji: React.Dispatch<React.SetStateAction<PreviewEmoji>>
+) {
+  const { unified, originalUnified } = allUnifiedFromEmojiElement(button);
+
+  if (!unified || !originalUnified) {
+    return;
+  }
+
+  (document.activeElement as HTMLElement)?.blur?.();
+
+  setPreviewEmoji({
+    unified,
+    originalUnified
+  });
 }

@@ -1,6 +1,8 @@
+import { cx } from 'flairup';
 import * as React from 'react';
 
 import { ClassNames } from '../../DomUtils/classNames';
+import { stylesheet } from '../../Stylesheet/stylesheet';
 import {
   Categories,
   CategoryConfig,
@@ -25,14 +27,13 @@ import { ClickableEmoji } from '../emoji/Emoji';
 import { EmojiCategory } from './EmojiCategory';
 import { Suggested } from './Suggested';
 
-import './EmojiList.css';
-
 export function EmojiList() {
   const categories = useCategoriesConfig();
+  const renderdCategoriesCountRef = React.useRef(0);
 
   return (
-    <ul className={ClassNames.emojiList}>
-      {categories.map((categoryConfig, index) => {
+    <ul className={cx(styles.emojiList)}>
+      {categories.map(categoryConfig => {
         const category = categoryFromCategoryConfig(categoryConfig);
 
         if (category === Categories.SUGGESTED) {
@@ -40,12 +41,13 @@ export function EmojiList() {
         }
 
         return (
-          <RenderCategory
-            key={category}
-            index={index}
-            category={category}
-            categoryConfig={categoryConfig}
-          />
+          <React.Suspense key={category}>
+            <RenderCategory
+              category={category}
+              categoryConfig={categoryConfig}
+              renderdCategoriesCountRef={renderdCategoriesCountRef}
+            />
+          </React.Suspense>
         );
       })}
     </ul>
@@ -53,13 +55,13 @@ export function EmojiList() {
 }
 
 function RenderCategory({
-  index,
   category,
-  categoryConfig
+  categoryConfig,
+  renderdCategoriesCountRef
 }: {
-  index: number;
   category: Categories;
   categoryConfig: CategoryConfig;
+  renderdCategoriesCountRef: React.MutableRefObject<number>;
 }) {
   const isEmojiHidden = useIsEmojiHidden();
   const lazyLoadEmojis = useLazyLoadEmojisConfig();
@@ -73,7 +75,13 @@ function RenderCategory({
   // Small trick to defer the rendering of all emoji categories until the first category is visible
   // This way the user gets to actually see something and not wait for the whole picker to render.
   const emojisToPush =
-    !isPastInitialLoad && index > 1 ? [] : emojisByCategory(category);
+    !isPastInitialLoad && renderdCategoriesCountRef.current > 0
+      ? []
+      : emojisByCategory(category);
+
+  if (emojisToPush.length > 0) {
+    renderdCategoriesCountRef.current++;
+  }
 
   let hiddenCounter = 0;
 
@@ -117,3 +125,12 @@ function RenderCategory({
     </EmojiCategory>
   );
 }
+
+const styles = stylesheet.create({
+  emojiList: {
+    '.': ClassNames.emojiList,
+    listStyle: 'none',
+    margin: '0',
+    padding: '0'
+  }
+});

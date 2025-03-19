@@ -1,5 +1,7 @@
-import clsx from 'clsx';
+import { cx } from 'flairup';
 import * as React from 'react';
+
+import { stylesheet } from '../../Stylesheet/stylesheet';
 
 interface Props
   extends React.DetailedHTMLProps<
@@ -14,9 +16,19 @@ export function Button(props: Props) {
     <button
       type="button"
       {...props}
-      className={clsx('epr-btn', props.className)}
+      className={cx(styles.button, props.className)}
     >
       {props.children}
     </button>
   );
 }
+
+const styles = stylesheet.create({
+  button: {
+    '.': 'epr-btn',
+    cursor: 'pointer',
+    border: '0',
+    background: 'none',
+    outline: 'none'
+  }
+});

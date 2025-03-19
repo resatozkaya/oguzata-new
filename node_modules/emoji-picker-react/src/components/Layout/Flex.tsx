@@ -1,6 +1,7 @@
-import clsx from 'clsx';
+import { cx } from 'flairup';
 import * as React from 'react';
-import './Flex.css';
+
+import { stylesheet } from '../../Stylesheet/stylesheet';
 
 export enum FlexDirection {
   ROW = 'FlexRow',
@@ -21,8 +22,23 @@ export default function Flex({
   direction = FlexDirection.ROW
 }: Props) {
   return (
-    <div style={{ ...style }} className={clsx('Flex', className, direction)}>
+    <div
+      style={{ ...style }}
+      className={cx(styles.flex, className, styles[direction])}
+    >
       {children}
     </div>
   );
 }
+
+const styles = stylesheet.create({
+  flex: {
+    display: 'flex'
+  },
+  [FlexDirection.ROW]: {
+    flexDirection: 'row'
+  },
+  [FlexDirection.COLUMN]: {
+    flexDirection: 'column'
+  }
+});

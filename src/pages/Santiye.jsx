@@ -22,17 +22,23 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Avatar,
+  Fab,
 } from '@mui/material';
 import BusinessIcon from '@mui/icons-material/Business';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import AddIcon from '@mui/icons-material/Add';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useTheme } from '../contexts/ThemeContext';
 import SantiyeRow from '../components/santiye/SantiyeRow';
 import SitePermissionModal from '../components/santiye/SitePermissionModal';
 import { useSnackbar } from 'notistack';
+import { usePermission } from '../contexts/PermissionContext';
+import { PAGE_PERMISSIONS } from '../constants/permissions';
+import { useAuth } from '../contexts/AuthContext';
 
 const Santiye = () => {
   const { isDarkMode } = useTheme();
@@ -45,6 +51,14 @@ const Santiye = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const { hasPermission } = usePermission();
+  const { currentUser } = useAuth();
+  
+  console.log('Current user in Santiye:', currentUser);
+  console.log('Has YÖNETİM role:', currentUser?.roles?.includes('YÖNETİM'));
+  
+  const canCreate = hasPermission(PAGE_PERMISSIONS.SANTIYE.CREATE);
+  console.log('Can create permission:', canCreate);
   const [formData, setFormData] = useState({
     ad: '',
     adres: '',
@@ -257,6 +271,31 @@ const Santiye = () => {
         Şantiye Yönetimi
       </Typography>
 
+      {canCreate && (
+        <Fab
+          color="primary"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={() => {
+            setEditData(null);
+            setFormData({
+              ad: '',
+              adres: '',
+              santiyeSefi: '',
+              projeMuduru: '',
+              durum: 'aktif',
+              baslangicTarihi: '',
+              bitisTarihi: '',
+              notlar: '',
+              resimUrl: '',
+              kod: ''
+            });
+            setDialogOpen(true);
+          }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
+
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
           <CircularProgress />
@@ -358,20 +397,30 @@ const Santiye = () => {
                 </FormControl>
               </Grid>
               <Grid item xs={12} sm={6}>
-                <Button
-                  component="label"
-                  variant="outlined"
-                  startIcon={<AddPhotoAlternateIcon />}
-                  fullWidth
-                >
-                  Resim Seç
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={handleImageChange}
-                  />
-                </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {formData.resimUrl && (
+                    <Avatar
+                      src={formData.resimUrl}
+                      alt="Şantiye resmi"
+                      variant="rounded"
+                      sx={{ width: 150, height: 150, mb: 1 }}
+                    />
+                  )}
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<AddPhotoAlternateIcon />}
+                    fullWidth
+                  >
+                    Resim Seç
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={handleImageChange}
+                    />
+                  </Button>
+                </Box>
               </Grid>
               <Grid item xs={12}>
                 <TextField

@@ -1,3 +1,6 @@
+import { DEFAULT_LABEL_HEIGHT } from '../components/main/PickerMain';
+
+import { ClassNames, asSelectors } from './classNames';
 import { NullableElement } from './selectors';
 
 export function elementCountInRow(
@@ -140,7 +143,8 @@ export function getElementInPrevRow(
 
 export function firstVisibleElementInContainer(
   parent: NullableElement,
-  elements: HTMLElement[]
+  elements: HTMLElement[],
+  maxVisibilityDiffThreshold = 0
 ): NullableElement {
   if (!parent || !elements.length) {
     return null;
@@ -148,14 +152,27 @@ export function firstVisibleElementInContainer(
 
   const parentTop = parent.getBoundingClientRect().top;
   const parentBottom = parent.getBoundingClientRect().bottom;
+  const parentTopWithLabel = parentTop + getLabelHeight(parent);
 
   const visibleElements = elements.find(element => {
     const elementTop = element.getBoundingClientRect().top;
     const elementBottom = element.getBoundingClientRect().bottom;
+    const maxVisibilityDiffPixels =
+      element.clientHeight * maxVisibilityDiffThreshold;
+
+    const elementTopWithAllowedDiff = elementTop + maxVisibilityDiffPixels;
+    const elementBottomWithAllowedDiff =
+      elementBottom - maxVisibilityDiffPixels;
+
+    if (elementTopWithAllowedDiff < parentTopWithLabel) {
+      return false;
+    }
 
     return (
-      (elementTop >= parentTop && elementTop <= parentBottom) ||
-      (elementBottom >= parentTop && elementBottom <= parentBottom)
+      (elementTopWithAllowedDiff >= parentTop &&
+        elementTopWithAllowedDiff <= parentBottom) ||
+      (elementBottomWithAllowedDiff >= parentTop &&
+        elementBottomWithAllowedDiff <= parentBottom)
     );
   });
 
@@ -164,4 +181,20 @@ export function firstVisibleElementInContainer(
 
 export function hasNextElementSibling(element: HTMLElement) {
   return !!element.nextElementSibling;
+}
+
+function getLabelHeight(parentNode: HTMLElement) {
+  const labels = Array.from(
+    parentNode.querySelectorAll(asSelectors(ClassNames.label))
+  );
+
+  for (const label of labels) {
+    const height = label.getBoundingClientRect().height;
+    // return height if label is not hidden
+    if (height > 0) {
+      return height;
+    }
+  }
+
+  return DEFAULT_LABEL_HEIGHT;
 }

@@ -4,10 +4,11 @@ import { CategoryConfig } from '../../config/categoryConfig';
 import {
   useEmojiStyleConfig,
   useGetEmojiUrlConfig,
-  useSuggestedEmojisModeConfig,
+  useSuggestedEmojisModeConfig
 } from '../../config/useConfig';
 import { emojiByUnified } from '../../dataUtils/emojiSelectors';
-import { getsuggested } from '../../dataUtils/suggested';
+import { getSuggested } from '../../dataUtils/suggested';
+import { useIsEverMounted } from '../../hooks/useIsEverMounted';
 import { useUpdateSuggested } from '../context/PickerContext';
 import { ClickableEmoji } from '../emoji/Emoji';
 
@@ -19,14 +20,19 @@ type Props = Readonly<{
 
 export function Suggested({ categoryConfig }: Props) {
   const [suggestedUpdated] = useUpdateSuggested();
+  const isMounted = useIsEverMounted();
   const suggestedEmojisModeConfig = useSuggestedEmojisModeConfig();
   const getEmojiUrl = useGetEmojiUrlConfig();
   const suggested = React.useMemo(
-    () => getsuggested(suggestedEmojisModeConfig) ?? [],
+    () => getSuggested(suggestedEmojisModeConfig) ?? [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestedUpdated, suggestedEmojisModeConfig]
   );
   const emojiStyle = useEmojiStyleConfig();
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <EmojiCategory
@@ -34,7 +40,7 @@ export function Suggested({ categoryConfig }: Props) {
       hiddenOnSearch
       hidden={suggested.length === 0}
     >
-      {suggested.map((suggestedItem) => {
+      {suggested.map(suggestedItem => {
         const emoji = emojiByUnified(suggestedItem.original);
 
         if (!emoji) {

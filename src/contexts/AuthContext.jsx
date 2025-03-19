@@ -4,7 +4,7 @@ import { signOut, sendPasswordResetEmail, updatePassword as firebaseUpdatePasswo
 import { getDoc, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { USER_ROLES } from '../constants/permissions';
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const useAuth = () => {
   return useContext(AuthContext);
@@ -13,7 +13,6 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userPermissions, setUserPermissions] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -22,68 +21,41 @@ export const AuthProvider = ({ children }) => {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            console.log('User data from Firestore:', userData); // Debug için eklendi
-            
-            // Eğer name ve surname yoksa, displayName'den ayırıyoruz
-            if (!userData.name || !userData.surname) {
-              const [firstName, ...lastNameParts] = (userData.displayName || user.displayName || '').split(' ');
-              const lastName = lastNameParts.join(' ');
-              
-              // Firestore'u güncelle
+
+            let roles = userData.roles || [];
+            if (userData.role === 'YÖNETİM' && !roles.includes('YÖNETİM')) {
+              roles = [...roles, 'YÖNETİM'];
               await updateDoc(doc(db, 'users', user.uid), {
-                name: firstName || '',
-                surname: lastName || '',
-                role: userData.role || USER_ROLES.USER,
-                permissions: userData.permissions || [],
+                roles: roles,
                 updatedAt: new Date()
               });
-
-              // Context'i güncelle
-              const currentUser = {
-                uid: user.uid,
-                email: user.email,
-                name: firstName || '',
-                surname: lastName || '',
-                role: userData.role || USER_ROLES.USER,
-                permissions: userData.permissions || []
-              };
-              console.log('Updated currentUser:', currentUser); // Debug için eklendi
-              setCurrentUser(currentUser);
-            } else {
-              // Rol kontrolü ve düzeltmesi
-              let userRole = userData.role;
-              if (userRole === 'YONETIM' || userRole === 'admin') {
-                userRole = USER_ROLES.ADMIN;
-                // Firestore'u güncelle
-                await updateDoc(doc(db, 'users', user.uid), {
-                  role: USER_ROLES.ADMIN,
-                  permissions: userData.permissions || [],
-                  updatedAt: new Date()
-                });
-              }
-
-              const currentUser = {
-                uid: user.uid,
-                email: user.email,
-                ...userData,
-                role: userRole,
-                permissions: userData.permissions || []
-              };
-              console.log('Current user with permissions:', currentUser); // Debug için eklendi
-              setCurrentUser(currentUser);
             }
 
-            // Kullanıcı yetkilerini güncelle
-            setUserPermissions(userData.permissions || []);
+            const currentUser = {
+              uid: user.uid,
+              email: user.email,
+              ...userData,
+              roles: roles,
+              permissions: userData.permissions || []
+            };
+
+            setCurrentUser(currentUser);
+          } else {
+            const newUser = {
+              uid: user.uid,
+              email: user.email,
+              roles: ['USER'],
+              permissions: []
+            };
+            await setDoc(doc(db, 'users', user.uid), newUser);
+            setCurrentUser(newUser);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
-          setCurrentUser(null);
-          setUserPermissions([]);
+          setCurrentUser(user);
         }
       } else {
         setCurrentUser(null);
-        setUserPermissions([]);
       }
       setLoading(false);
     });
@@ -93,7 +65,6 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
-    userPermissions,
     loading,
     logout: async () => {
       try {

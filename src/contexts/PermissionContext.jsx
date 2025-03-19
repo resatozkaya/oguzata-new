@@ -1,52 +1,42 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { auth } from '../config/firebase';
-import { getUserPermissions, getUserRoles } from '../services/roles';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const PermissionContext = createContext();
 
 export const usePermission = () => {
   const context = useContext(PermissionContext);
   if (!context) {
-    throw new Error('usePermission hook must be used within a PermissionProvider');
+    throw new Error('usePermission must be used within a PermissionProvider');
   }
   return context;
 };
 
 export const PermissionProvider = ({ children }) => {
+  const { currentUser } = useAuth();
   const [userPermissions, setUserPermissions] = useState([]);
   const [userRoles, setUserRoles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadPermissions = async () => {
-      try {
-        setLoading(true);
-        const user = auth.currentUser;
-        if (user) {
-          const permissions = await getUserPermissions(user.uid);
-          const roles = await getUserRoles(user.uid);
-          setUserPermissions(permissions);
-          setUserRoles(roles);
-        }
-      } catch (error) {
-        console.error('Error loading permissions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (currentUser) {
+      setUserPermissions(currentUser.permissions || []);
+      setUserRoles(currentUser.roles || []);
+    } else {
+      setUserPermissions([]);
+      setUserRoles([]);
+    }
+    setLoading(false);
+  }, [currentUser]);
 
-    loadPermissions();
-  }, []);
-
-  const hasPermission = useCallback((permission) => {
+  const hasPermission = (permission) => {
     // Eğer kullanıcı YÖNETİM rolündeyse tüm yetkilere sahip olsun
-    if (userRoles?.includes('YONETIM')) {
+    if (userRoles?.includes('YÖNETİM')) {
       return true;
     }
 
     // Diğer roller için normal yetki kontrolü
     return userPermissions?.includes(permission) || false;
-  }, [userRoles, userPermissions]);
+  };
 
   const value = {
     hasPermission,
@@ -62,4 +52,4 @@ export const PermissionProvider = ({ children }) => {
   );
 };
 
-export default PermissionContext;
+export default PermissionProvider;

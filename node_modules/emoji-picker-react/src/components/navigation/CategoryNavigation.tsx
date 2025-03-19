@@ -1,19 +1,18 @@
-import clsx from 'clsx';
+import { cx } from 'flairup';
 import * as React from 'react';
 import { useState } from 'react';
-import './CategoryNavigation.css';
 
-import { ClassNames } from '../../DomUtils/classNames';
-import {
-  categoryFromCategoryConfig,
-  categoryNameFromCategoryConfig
-} from '../../config/categoryConfig';
+import { stylesheet } from '../../Stylesheet/stylesheet';
+import { categoryFromCategoryConfig } from '../../config/categoryConfig';
 import { useCategoriesConfig } from '../../config/useConfig';
 import { useActiveCategoryScrollDetection } from '../../hooks/useActiveCategoryScrollDetection';
 import useIsSearchMode from '../../hooks/useIsSearchMode';
 import { useScrollCategoryIntoView } from '../../hooks/useScrollCategoryIntoView';
-import { Button } from '../atoms/Button';
+import { useShouldHideCustomEmojis } from '../../hooks/useShouldHideCustomEmojis';
+import { isCustomCategory } from '../../typeRefinements/typeRefinements';
 import { useCategoryNavigationRef } from '../context/ElementRefContext';
+
+import { CategoryButton } from './CategoryButton';
 
 export function CategoryNavigation() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -23,26 +22,64 @@ export function CategoryNavigation() {
 
   const categoriesConfig = useCategoriesConfig();
   const CategoryNavigationRef = useCategoryNavigationRef();
+  const hideCustomCategory = useShouldHideCustomEmojis();
 
   return (
-    <div className="epr-category-nav" ref={CategoryNavigationRef}>
+    <div
+      className={cx(styles.nav)}
+      role="tablist"
+      aria-label="Category navigation"
+      id="epr-category-nav-id"
+      ref={CategoryNavigationRef}
+    >
       {categoriesConfig.map(categoryConfig => {
         const category = categoryFromCategoryConfig(categoryConfig);
+        const isActiveCategory = category === activeCategory;
+
+        if (isCustomCategory(categoryConfig) && hideCustomCategory) {
+          return null;
+        }
+
+        const allowNavigation = !isSearchMode && !isActiveCategory;
+
         return (
-          <Button
-            tabIndex={isSearchMode ? -1 : 0}
-            className={clsx('epr-cat-btn', `epr-icn-${category}`, {
-              [ClassNames.active]: category === activeCategory
-            })}
+          <CategoryButton
             key={category}
+            category={category}
+            isActiveCategory={isActiveCategory}
+            allowNavigation={allowNavigation}
+            categoryConfig={categoryConfig}
             onClick={() => {
               setActiveCategory(category);
               scrollCategoryIntoView(category);
             }}
-            aria-label={categoryNameFromCategoryConfig(categoryConfig)}
           />
         );
       })}
     </div>
   );
 }
+
+const styles = stylesheet.create({
+  nav: {
+    '.': 'epr-category-nav',
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 'var(--epr-header-padding)'
+  },
+  '.epr-search-active': {
+    nav: {
+      opacity: '0.3',
+      cursor: 'default',
+      pointerEvents: 'none'
+    }
+  },
+  '.epr-main:has(input:not(:placeholder-shown))': {
+    nav: {
+      opacity: '0.3',
+      cursor: 'default',
+      pointerEvents: 'none'
+    }
+  }
+});

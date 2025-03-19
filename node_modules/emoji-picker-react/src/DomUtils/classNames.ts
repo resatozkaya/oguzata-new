@@ -8,7 +8,7 @@ export enum ClassNames {
   category = 'epr-emoji-category',
   label = 'epr-emoji-category-label',
   categoryContent = 'epr-emoji-category-content',
-  emojiHasVariatios = 'epr-emoji-has-variations',
+  emojiHasVariations = 'epr-emoji-has-variations',
   scrollBody = 'epr-body',
   emojiList = 'epr-emoji-list',
   external = '__EmojiPicker__',
@@ -16,7 +16,9 @@ export enum ClassNames {
   open = 'epr-open',
   vertical = 'epr-vertical',
   horizontal = 'epr-horizontal',
-  variationPicker = 'epr-emoji-variation-picker'
+  variationPicker = 'epr-emoji-variation-picker',
+  darkTheme = 'epr-dark-theme',
+  autoTheme = 'epr-auto-theme'
 }
 
 export function asSelectors(...classNames: ClassNames[]): string {

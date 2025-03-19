@@ -5,20 +5,22 @@ import {
   IconButton,
   Chip,
   Box,
-  Tooltip
+  Tooltip,
+  Avatar
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SecurityIcon from '@mui/icons-material/Security';
-import { usePermission } from '../../hooks/usePermission';
+import { usePermission } from '../../contexts/PermissionContext';
 import { PAGE_PERMISSIONS } from '../../constants/permissions';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const SantiyeRow = ({ santiye, onEdit, onDelete, onPermissionClick }) => {
   const { isDarkMode } = useTheme();
-  const { hasPermission: canEdit } = usePermission(PAGE_PERMISSIONS.SANTIYE.UPDATE, santiye.id);
-  const { hasPermission: canDelete } = usePermission(PAGE_PERMISSIONS.SANTIYE.DELETE, santiye.id);
-  const { hasPermission: canManage } = usePermission(PAGE_PERMISSIONS.SANTIYE.MANAGE, santiye.id);
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission(PAGE_PERMISSIONS.SANTIYE.UPDATE, santiye.id);
+  const canDelete = hasPermission(PAGE_PERMISSIONS.SANTIYE.DELETE, santiye.id);
+  const canManage = hasPermission(PAGE_PERMISSIONS.SANTIYE.MANAGE, santiye.id);
 
   const getDurumColor = (durum) => {
     switch (durum) {
@@ -38,7 +40,17 @@ const SantiyeRow = ({ santiye, onEdit, onDelete, onPermissionClick }) => {
       }}
     >
       <TableCell>{santiye.kod}</TableCell>
-      <TableCell>{santiye.ad}</TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar
+            src={santiye.resimUrl}
+            alt={santiye.ad}
+            sx={{ width: 40, height: 40 }}
+            variant="rounded"
+          />
+          {santiye.ad}
+        </Box>
+      </TableCell>
       <TableCell>{santiye.adres}</TableCell>
       <TableCell>{santiye.santiyeSefi}</TableCell>
       <TableCell>{santiye.projeMuduru}</TableCell>

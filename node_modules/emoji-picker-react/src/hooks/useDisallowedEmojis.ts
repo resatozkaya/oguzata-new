@@ -9,6 +9,8 @@ import {
   unifiedWithoutSkinTone
 } from '../dataUtils/emojiSelectors';
 
+import { useIsUnicodeHidden } from './useHideEmojisByUniocode';
+
 export function useDisallowedEmojis() {
   const DisallowedEmojisRef = useRef<Record<string, boolean>>({});
   const emojiVersionConfig = useEmojiVersionConfig();
@@ -32,11 +34,12 @@ export function useDisallowedEmojis() {
 
 export function useIsEmojiDisallowed() {
   const disallowedEmojis = useDisallowedEmojis();
+  const isUnicodeHidden = useIsUnicodeHidden();
 
   return function isEmojiDisallowed(emoji: DataEmoji) {
     const unified = unifiedWithoutSkinTone(emojiUnified(emoji));
 
-    return Boolean(disallowedEmojis[unified]);
+    return Boolean(disallowedEmojis[unified] || isUnicodeHidden(unified));
   };
 }
 

@@ -1,7 +1,7 @@
 import { DataEmoji } from '../dataUtils/DataTypes';
 import {
   emojiByUnified,
-  unifiedWithoutSkinTone,
+  unifiedWithoutSkinTone
 } from '../dataUtils/emojiSelectors';
 
 import { asSelectors, ClassNames } from './classNames';
@@ -13,7 +13,7 @@ export const EmojiButtonSelector = `button${asSelectors(ClassNames.emoji)}`;
 export const VisibleEmojiSelector = [
   EmojiButtonSelector,
   asSelectors(ClassNames.visible),
-  `:not(${asSelectors(ClassNames.hidden)})`,
+  `:not(${asSelectors(ClassNames.hidden)})`
 ].join('');
 
 export function buttonFromTarget(
@@ -40,7 +40,7 @@ export function emojiFromElement(
     return [];
   }
 
-  const emoji = emojiByUnified(originalUnified);
+  const emoji = emojiByUnified(unified ?? originalUnified);
 
   if (!emoji) {
     return [];
@@ -113,11 +113,11 @@ export function isEmojiBehindLabel(emoji: NullableElement): boolean {
 }
 
 export function queryScrollBody(root: NullableElement): NullableElement {
-  return root
-    ? root.matches(asSelectors(ClassNames.scrollBody))
-      ? root
-      : root.querySelector(asSelectors(ClassNames.scrollBody))
-    : null;
+  if (!root) return null;
+
+  return root.matches(asSelectors(ClassNames.scrollBody))
+    ? root
+    : root.querySelector(asSelectors(ClassNames.scrollBody));
 }
 
 export function emojiDistanceFromScrollTop(emoji: NullableElement): number {
@@ -164,6 +164,22 @@ export function originalUnifiedFromEmojiElement(
     return unifiedWithoutSkinTone(unified);
   }
   return null;
+}
+
+export function allUnifiedFromEmojiElement(
+  emoji: NullableElement
+): { unified: string | null; originalUnified: string | null } {
+  if (!emoji) {
+    return {
+      unified: null,
+      originalUnified: null
+    };
+  }
+
+  return {
+    unified: unifiedFromEmojiElement(emoji),
+    originalUnified: originalUnifiedFromEmojiElement(emoji)
+  };
 }
 
 function elementDataSetKey(
@@ -248,7 +264,7 @@ export function firstVisibleEmoji(parent: NullableElement) {
 
   const allEmojis = allVisibleEmojis(parent);
 
-  return firstVisibleElementInContainer(parent, allEmojis);
+  return firstVisibleElementInContainer(parent, allEmojis, 0.1);
 }
 
 export function prevCategory(element: NullableElement): NullableElement {

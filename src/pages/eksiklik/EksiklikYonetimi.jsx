@@ -55,24 +55,13 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   // Tam ekran state'leri
   const [binaGorunumuTamEkran, setBinaGorunumuTamEkran] = useState(false);
   const [eksikliklerTamEkran, setEksikliklerTamEkran] = useState(false);
-  const hasPermission = usePermission();
 
-  // Debug için yetki kontrollerini logla
-  React.useEffect(() => {
-    console.log('Checking permissions:');
-    console.log('eksiklik_bina_yapisi:', hasPermission('eksiklik_bina_yapisi'));
-    console.log('eksiklik_blok_yonetimi:', hasPermission('eksiklik_blok_yonetimi'));
-    console.log('eksiklik_create:', hasPermission('eksiklik_create'));
-    console.log('eksiklik_view:', hasPermission('eksiklik_view'));
-    console.log('eksiklik_manage:', hasPermission('eksiklik_manage'));
-  }, [hasPermission]);
-
-  // Buton görünürlük kontrolleri
-  const canManageBinaYapisi = hasPermission('eksiklik_bina_yapisi');
-  const canManageBlok = hasPermission('eksiklik_blok_yonetimi');
-  const canCreateEksiklik = hasPermission('eksiklik_create');
-  const canViewEksiklik = hasPermission('eksiklik_view');
-  const canManageEksiklik = hasPermission('eksiklik_manage');
+  // Yetki kontrolleri
+  const canManageBinaYapisi = usePermission(PAGE_PERMISSIONS.EKSIKLIK.BINA_YAPISI);
+  const canManageBlok = usePermission(PAGE_PERMISSIONS.EKSIKLIK.BLOK_YONETIMI);
+  const canCreateEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.CREATE);
+  const canViewEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.VIEW);
+  const canManageEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.MANAGE);
 
   useEffect(() => {
     const yukle = async () => {

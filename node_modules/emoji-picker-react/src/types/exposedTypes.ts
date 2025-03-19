@@ -4,7 +4,9 @@ export type EmojiClickData = {
   unifiedWithoutSkinTone: string;
   emoji: string;
   names: string[];
-  getImageUrl: (emojiStyle: EmojiStyle) => string;
+  imageUrl: string;
+  getImageUrl: (emojiStyle?: EmojiStyle) => string;
+  isCustom: boolean;
 };
 
 export enum SuggestionMode {
@@ -37,6 +39,7 @@ export enum SkinTones {
 
 export enum Categories {
   SUGGESTED = 'suggested',
+  CUSTOM = 'custom',
   SMILEYS_PEOPLE = 'smileys_people',
   ANIMALS_NATURE = 'animals_nature',
   FOOD_DRINK = 'food_drink',

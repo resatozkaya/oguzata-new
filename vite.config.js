@@ -6,7 +6,6 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true, // 0.0.0.0 üzerinden dinle
     port: 3000,
     open: true,
     cors: true,
@@ -18,29 +17,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/src'
+      '@': path.resolve(__dirname, './src')
     }
   },
   build: {
+    outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
-        }
-      }
-    }
-  },
-  esbuild: {
-    pure: ['console.log']
+    minify: true,
+    chunkSizeWarningLimit: 1000
   }
 })
