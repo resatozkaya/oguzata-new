@@ -1,8 +1,44 @@
-# React + Vite
+# Şantiye Yönetim Sistemi
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern ve kullanıcı dostu bir şantiye yönetim web uygulaması.
 
-Currently, two official plugins are available:
+## Özellikler
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Şantiye ekleme, düzenleme ve silme
+- Rol tabanlı yetkilendirme sistemi
+- Personel yönetimi
+- Eksiklik takibi
+- Modern ve responsive arayüz
+
+## Teknolojiler
+
+- React
+- Firebase (Authentication & Firestore)
+- Material-UI
+- Vite
+
+## Kurulum
+
+```bash
+# Bağımlılıkları yükle
+npm install
+
+# Geliştirme sunucusunu başlat
+npm run dev
+
+# Production build
+npm run build
+```
+
+## Yetkilendirme Sistemi
+
+- YÖNETİM rolüne sahip kullanıcılar tüm işlemleri yapabilir
+- Diğer roller için özel izinler tanımlanabilir
+- Şantiye bazlı yetkilendirme desteği
+
+## Geliştirme Notları
+
+- Firebase Authentication ve Firestore entegrasyonu
+- Context API ile state yönetimi
+- Rol ve izin sistemi implementasyonu
+- Modern UI/UX tasarımı
