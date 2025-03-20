@@ -9,6 +9,7 @@ export default defineConfig({
     port: 3000,
     open: true,
     cors: true,
+    host: true, // Tüm network interfacelerine izin ver
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,PUT,POST,DELETE,PATCH,OPTIONS',

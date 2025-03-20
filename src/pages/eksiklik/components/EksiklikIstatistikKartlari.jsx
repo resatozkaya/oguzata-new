@@ -32,35 +32,44 @@ const StatCard = ({ title, value, icon, color }) => (
   </Paper>
 );
 
-const EksiklikIstatistikKartlari = ({ istatistikler }) => {
+const EksiklikIstatistikKartlari = ({ eksiklikler = [] }) => {
+  // İstatistikleri hesapla
+  const istatistikler = {
+    toplam: eksiklikler.length,
+    yeni: eksiklikler.filter(e => e.durum === 'YENI').length,
+    devamEden: eksiklikler.filter(e => e.durum === 'DEVAM_EDIYOR').length,
+    tamamlandi: eksiklikler.filter(e => e.durum === 'TAMAMLANDI').length,
+    kritik: eksiklikler.filter(e => e.oncelik === 'KRITIK').length
+  };
+
   const cards = [
     {
       title: 'Toplam Eksiklik',
-      value: istatistikler.toplam,
+      value: istatistikler.toplam || 0,
       icon: <AssignmentIcon sx={{ fontSize: 40 }} />,
       color: 'primary'
     },
     {
       title: 'Yeni',
-      value: istatistikler.yeni,
+      value: istatistikler.yeni || 0,
       icon: <NewIcon sx={{ fontSize: 40 }} />,
       color: 'info'
     },
     {
       title: 'Devam Eden',
-      value: istatistikler.devamEden,
+      value: istatistikler.devamEden || 0,
       icon: <RefreshIcon sx={{ fontSize: 40 }} />,
       color: 'warning'
     },
     {
       title: 'Tamamlandı',
-      value: istatistikler.tamamlandi,
+      value: istatistikler.tamamlandi || 0,
       icon: <CheckIcon sx={{ fontSize: 40 }} />,
       color: 'success'
     },
     {
       title: 'Kritik',
-      value: istatistikler.kritik,
+      value: istatistikler.kritik || 0,
       icon: <WarningIcon sx={{ fontSize: 40 }} />,
       color: 'error'
     }

@@ -1,4 +1,4 @@
-import { db } from '../lib/firebase/config';
+import { db, storage } from '../lib/firebase/config';
 import {
   collection,
   doc,
@@ -12,6 +12,12 @@ import {
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL,
+  deleteObject 
+} from 'firebase/storage';
 
 class BinaService {
   // Geçici değişiklikleri tutmak için private map
@@ -632,7 +638,7 @@ class BinaService {
           durum: data.durum || 'YENI',
           oncelik: data.oncelik || 'NORMAL',
           taseron: data.taseron || '',
-          fotograflar: data.fotograflar || [],
+          resimler: data.resimler || [], // fotograflar -> resimler
           olusturmaTarihi: data.olusturmaTarihi?.toDate()
         };
       });
@@ -644,26 +650,42 @@ class BinaService {
     }
   }
 
-  // Yeni eksiklik ekle
+  // Base64 boyutunu kontrol et (max 5MB)
+  isValidImageSize = (base64String) => {
+    // Base64 stringinin boyutunu hesapla (byte cinsinden)
+    const base64Length = base64String.length - (base64String.indexOf(',') + 1);
+    const sizeInBytes = (base64Length * 3) / 4;
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    return sizeInMB <= 5;
+  };
+
+  // Eksiklik ekle
   async eksiklikEkle(santiyeId, blokId, eksiklik) {
     try {
+      // Resimlerin boyutunu kontrol et
+      if (eksiklik.resimler && eksiklik.resimler.length > 0) {
+        const buyukResimler = eksiklik.resimler.filter(resim => !this.isValidImageSize(resim));
+        if (buyukResimler.length > 0) {
+          throw new Error('Bazı resimler çok büyük (max 5MB)');
+        }
+      }
+
       const eksikliklerRef = collection(db, `santiyeler/${santiyeId}/bloklar/${blokId}/eksiklikler`);
-      const yeniEksiklikRef = doc(eksikliklerRef);
-      
-      const eksiklikData = {
+      const yeniEksiklik = {
         ...eksiklik,
-        id: yeniEksiklikRef.id,
-        taseron: eksiklik.taseron || '',
         olusturmaTarihi: serverTimestamp(),
-        guncellemeTarihi: serverTimestamp()
+        guncellenmeTarihi: serverTimestamp()
       };
 
-      await setDoc(yeniEksiklikRef, eksiklikData);
-      
+      // Eksikliği Firestore'a kaydet
+      const eksiklikDoc = doc(eksikliklerRef);
+      await setDoc(eksiklikDoc, yeniEksiklik);
+
       return {
-        ...eksiklikData,
+        id: eksiklikDoc.id,
+        ...yeniEksiklik,
         olusturmaTarihi: new Date(),
-        guncellemeTarihi: new Date()
+        guncellenmeTarihi: new Date()
       };
     } catch (error) {
       console.error('Eksiklik eklenirken hata:', error);
@@ -674,16 +696,28 @@ class BinaService {
   // Eksiklik güncelle
   async eksiklikGuncelle(santiyeId, blokId, eksiklik) {
     try {
+      // Yeni resimlerin boyutunu kontrol et
+      if (eksiklik.resimler && eksiklik.resimler.length > 0) {
+        const yeniResimler = eksiklik.resimler.filter(resim => resim.startsWith('data:'));
+        const buyukResimler = yeniResimler.filter(resim => !this.isValidImageSize(resim));
+        if (buyukResimler.length > 0) {
+          throw new Error('Bazı resimler çok büyük (max 5MB)');
+        }
+      }
+
       const eksiklikRef = doc(db, `santiyeler/${santiyeId}/bloklar/${blokId}/eksiklikler/${eksiklik.id}`);
-      
-      const guncelData = {
+      const guncellenecekVeri = {
         ...eksiklik,
-        taseron: eksiklik.taseron || '',
-        guncellemeTarihi: serverTimestamp()
+        guncellenmeTarihi: serverTimestamp()
       };
 
-      await updateDoc(eksiklikRef, guncelData);
-      return true;
+      await updateDoc(eksiklikRef, guncellenecekVeri);
+
+      return {
+        id: eksiklik.id,
+        ...guncellenecekVeri,
+        guncellenmeTarihi: new Date()
+      };
     } catch (error) {
       console.error('Eksiklik güncellenirken hata:', error);
       throw error;
@@ -695,32 +729,8 @@ class BinaService {
     try {
       const eksiklikRef = doc(db, `santiyeler/${santiyeId}/bloklar/${blokId}/eksiklikler/${eksiklikId}`);
       await deleteDoc(eksiklikRef);
-      return true;
     } catch (error) {
       console.error('Eksiklik silinirken hata:', error);
-      throw error;
-    }
-  }
-
-  // Eksiklik fotoğrafı ekle
-  async eksiklikFotografEkle(santiyeId, blokId, eksiklikId, file) {
-    try {
-      // Burada storage işlemleri yapılacak
-      // Şimdilik sadece dosya adını döndürüyoruz
-      return file.name;
-    } catch (error) {
-      console.error('Fotoğraf eklenirken hata:', error);
-      throw error;
-    }
-  }
-
-  // Eksiklik fotoğrafı sil
-  async eksiklikFotografSil(santiyeId, blokId, eksiklikId, fotografUrl) {
-    try {
-      // Burada storage işlemleri yapılacak
-      return true;
-    } catch (error) {
-      console.error('Fotoğraf silinirken hata:', error);
       throw error;
     }
   }

@@ -112,7 +112,7 @@ const RolYetkilendirme = ({ open, onClose, modul, santiyeId, showTeslimatEkip = 
       fullWidth
     >
       <DialogTitle>
-        <Typography variant="h6">{getTitle()}</Typography>
+        {getTitle()}
       </DialogTitle>
 
       <DialogContent dividers>

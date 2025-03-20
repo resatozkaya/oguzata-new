@@ -65,6 +65,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    setCurrentUser,
     loading,
     logout: async () => {
       try {

@@ -47,12 +47,16 @@ const LoginPage = () => {
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        setCurrentUser({
-          id: userCredential.user.uid,
-          email: userData.email,
-          name: userData.displayName,
-          role: userData.role
-        });
+        const roles = userData.roles || [userData.role || 'USER'];
+        const currentUser = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          ...userData,
+          roles,
+          permissions: userData.permissions || []
+        };
+        
+        setCurrentUser(currentUser);
         navigate('/');
       } else {
         setError('Kullanıcı bilgileri bulunamadı.');
