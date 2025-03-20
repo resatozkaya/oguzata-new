@@ -16,15 +16,23 @@ export default defineConfig({
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With'
     }
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true, // Build öncesi dist klasörünü temizle
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
     }
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    minify: true,
-    chunkSizeWarningLimit: 1000
   }
 })
