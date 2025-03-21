@@ -22,7 +22,8 @@ import {
 import {
   Close as CloseIcon,
   PhotoCamera,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  PhotoLibrary as PhotoLibraryIcon
 } from '@mui/icons-material';
 
 const DURUM_SECENEKLERI = [
@@ -154,17 +155,73 @@ const EksiklikFormModal = ({ open, onClose, eksiklik, onSave, taseronlar = TASER
 
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
     
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    // Dosya boyutu kontrolü
+    const oversizedFiles = files.filter(file => file.size > maxFileSize);
+    if (oversizedFiles.length > 0) {
+      alert('Bazı dosyalar 5MB\'tan büyük. Lütfen daha küçük dosyalar seçin.');
+      return;
+    }
+
+    // Mobil cihazlarda resim sıkıştırma
+    const processImage = async (file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Maksimum boyutlar
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+
+            // Boyut oranını koru
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Kalite ayarı (0.7 = %70 kalite)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(dataUrl);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    };
+
+    // Her dosyayı işle
+    const processFiles = async () => {
+      try {
+        const processedImages = await Promise.all(files.map(processImage));
         setFormData(prev => ({
           ...prev,
-          resimler: [...prev.resimler, reader.result]
+          resimler: [...prev.resimler, ...processedImages]
         }));
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (error) {
+        console.error('Resim işlenirken hata:', error);
+        alert('Resimler yüklenirken hata oluştu');
+      }
+    };
+
+    processFiles();
   };
 
   const handleRemoveImage = (index) => {
@@ -293,76 +350,112 @@ const EksiklikFormModal = ({ open, onClose, eksiklik, onSave, taseronlar = TASER
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <input
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      id="resim-yukle"
-                      type="file"
-                      multiple
-                      onChange={handleImageUpload}
-                    />
-                    <label htmlFor="resim-yukle">
-                      <Button
-                        variant="outlined"
-                        component="span"
-                        startIcon={<PhotoCamera />}
-                        fullWidth
-                      >
-                        Resim Yükle
-                      </Button>
-                    </label>
-                  </Box>
+                  <Box sx={{ 
+                    border: '2px dashed #ccc', 
+                    borderRadius: 2, 
+                    p: 2, 
+                    textAlign: 'center',
+                    '&:hover': { borderColor: 'primary.main' }
+                  }}>
+                    <Grid container spacing={2} justifyContent="center">
+                      <Grid item xs={12} sm={6}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="kamera-ile-cek"
+                          type="file"
+                          onChange={handleImageUpload}
+                          capture="environment"
+                        />
+                        <label htmlFor="kamera-ile-cek">
+                          <Button
+                            variant="contained"
+                            component="span"
+                            fullWidth
+                            startIcon={<PhotoCamera />}
+                            sx={{ mb: { xs: 1, sm: 0 } }}
+                          >
+                            Kamera ile Çek
+                          </Button>
+                        </label>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="dosyadan-sec"
+                          type="file"
+                          onChange={handleImageUpload}
+                          multiple
+                        />
+                        <label htmlFor="dosyadan-sec">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            fullWidth
+                            startIcon={<PhotoLibraryIcon />}
+                          >
+                            Galeriden Seç
+                          </Button>
+                        </label>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="textSecondary">
+                          Maksimum dosya boyutu: 5MB
+                        </Typography>
+                      </Grid>
+                    </Grid>
 
-                  {formData.resimler.length > 0 && (
-                    <Box sx={{ 
-                      display: 'flex', 
-                      gap: 1, 
-                      flexWrap: 'wrap',
-                      mb: 2 
-                    }}>
-                      {formData.resimler.map((resim, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            position: 'relative',
-                            width: 100,
-                            height: 100
-                          }}
-                        >
-                          <img
-                            src={resim}
-                            alt={`Eksiklik ${index + 1}`}
-                            onClick={() => handleImageClick(resim)}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              borderRadius: 4,
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRemoveImage(index)}
+                    {/* Yüklenen resimlerin önizlemesi */}
+                    {formData.resimler.length > 0 && (
+                      <Box sx={{ 
+                        mt: 2,
+                        display: 'flex',
+                        gap: 1,
+                        flexWrap: 'wrap',
+                        justifyContent: 'center'
+                      }}>
+                        {formData.resimler.map((resim, index) => (
+                          <Box
+                            key={index}
                             sx={{
-                              position: 'absolute',
-                              top: -8,
-                              right: -8,
-                              bgcolor: 'background.paper',
-                              boxShadow: 1,
-                              '&:hover': {
-                                bgcolor: 'error.light',
-                                color: 'white'
-                              }
+                              position: 'relative',
+                              width: 100,
+                              height: 100
                             }}
                           >
-                            <CloseIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
+                            <img
+                              src={resim}
+                              alt={`Önizleme ${index + 1}`}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                borderRadius: '4px'
+                              }}
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemoveImage(index)}
+                              sx={{
+                                position: 'absolute',
+                                right: -12,
+                                top: -12,
+                                bgcolor: 'background.paper',
+                                boxShadow: 1,
+                                '&:hover': {
+                                  bgcolor: 'error.light',
+                                  color: 'white'
+                                }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
                 </Grid>
               </Grid>
             </Grid>

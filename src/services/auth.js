@@ -8,34 +8,32 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase/config';
 
-export const registerUser = async (email, password, name, role, phoneNumber, surname) => {
+export const registerUser = async (email, password, name, role = 'PERSONEL', phone, surname) => {
   try {
-    // Create authentication user
+    // Firebase Authentication'da kullanıcı oluştur
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const { user } = userCredential;
+    const user = userCredential.user;
 
-    // Update profile
-    await updateProfile(user, { displayName: `${name} ${surname}` });
-
-    // Create user document
-    const userData = {
+    // Firestore'da kullanıcı dokümanı oluştur
+    await setDoc(doc(db, 'users', user.uid), {
       email,
       name,
       surname,
-      role,
-      phoneNumber,
+      phone,
+      roles: [role],
+      permissions: [],
       createdAt: new Date(),
       updatedAt: new Date()
-    };
+    });
 
-    await setDoc(doc(db, 'users', user.uid), userData);
-
-    return {
-      id: user.uid,
-      ...userData
-    };
+    return userCredential;
   } catch (error) {
-    console.error('Error registering user:', error);
+    console.error('Kullanıcı kayıt hatası:', error);
+    // Eğer auth kullanıcısı oluşturuldu ama Firestore kaydı başarısız olduysa
+    // auth kullanıcısını sil
+    if (error.code !== 'auth/email-already-in-use' && auth.currentUser) {
+      await auth.currentUser.delete();
+    }
     throw error;
   }
 };

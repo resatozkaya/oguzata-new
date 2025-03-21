@@ -24,7 +24,10 @@ import {
   Schedule as ScheduleIcon,
   Image as ImageIcon,
   Close as CloseIcon,
-  PhotoLibrary as PhotoLibraryIcon
+  PhotoLibrary as PhotoLibraryIcon,
+  Pending as PendingIcon,
+  Cancel as CancelIcon,
+  NewReleases as NewReleasesIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { usePermission } from '../../../contexts/PermissionContext';
@@ -40,27 +43,24 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
   const getDurumBilgisi = (durum) => {
     switch (durum) {
       case 'TAMAMLANDI':
-        return { color: 'success', icon: <CheckCircleIcon />, label: 'Tamamlandı' };
+        return { color: 'success', label: 'Tamamlandı', icon: <CheckCircleIcon /> };
       case 'DEVAM_EDIYOR':
-        return { color: 'warning', icon: <ScheduleIcon />, label: 'Devam Ediyor' };
-      case 'YENI':
-        return { color: 'info', icon: <WarningIcon />, label: 'Yeni' };
+        return { color: 'warning', label: 'Devam Ediyor', icon: <PendingIcon /> };
+      case 'IPTAL':
+        return { color: 'error', label: 'İptal', icon: <CancelIcon /> };
       default:
-        return { color: 'default', icon: <ErrorIcon />, label: durum };
+        return { color: 'info', label: 'Yeni', icon: <NewReleasesIcon /> };
     }
   };
 
-  // Önceliğe göre renk belirle
   const getOncelikRengi = (oncelik) => {
     switch (oncelik) {
-      case 'KRITIK':
+      case 'YUKSEK':
         return 'error';
-      case 'NORMAL':
+      case 'ORTA':
         return 'warning';
-      case 'DUSUK':
-        return 'info';
       default:
-        return 'default';
+        return 'info';
     }
   };
 
@@ -69,39 +69,125 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
       return null;
     }
 
-    // Mobil ve tablet görünümü için
-    if (window.innerWidth < 768) {
+    // Ekran boyutu kontrolü
+    const isMobile = window.innerWidth < 768;
+    const isTablet = window.innerWidth >= 768 && window.innerWidth < 1200;
+
+    if (isMobile) {
       return (
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => setBuyukResim(eksiklik.resimler[0])}
-          startIcon={<PhotoLibraryIcon />}
-        >
-          Fotoğrafları Görüntüle ({eksiklik.resimler.length} adet)
-        </Button>
+        <Box sx={{ mt: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setBuyukResim(eksiklik.resimler[0])}
+            startIcon={<PhotoLibraryIcon />}
+            fullWidth
+          >
+            Fotoğrafları Görüntüle ({eksiklik.resimler.length} adet)
+          </Button>
+        </Box>
       );
     }
 
-    // Masaüstü görünümü için
+    if (isTablet) {
+      return (
+        <Box sx={{ 
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              position: 'relative',
+              borderRadius: 1,
+              overflow: 'hidden',
+              flexShrink: 0,
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <img
+              src={eksiklik.resimler[0]}
+              alt="Önizleme"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+              onClick={() => setBuyukResim(eksiklik.resimler[0])}
+            />
+            {eksiklik.resimler.length > 1 && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  bgcolor: 'rgba(0,0,0,0.6)',
+                  color: 'white',
+                  fontSize: '12px',
+                  padding: '4px',
+                  textAlign: 'center'
+                }}
+              >
+                +{eksiklik.resimler.length - 1} Fotoğraf
+              </Box>
+            )}
+          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setBuyukResim(eksiklik.resimler[0])}
+            sx={{ flexGrow: 1 }}
+          >
+            Tüm Fotoğrafları Gör
+          </Button>
+        </Box>
+      );
+    }
+
     return (
-      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: '8px', 
+        mt: 1,
+        flexWrap: 'wrap'
+      }}>
         {eksiklik.resimler.map((resim, index) => (
-          <img
+          <Box
             key={index}
-            src={resim}
-            alt={`Eksiklik ${index + 1}`}
-            style={{
-              width: '100px',
-              height: '100px',
-              objectFit: 'cover',
-              borderRadius: '4px',
-              cursor: 'pointer'
+            sx={{
+              width: 100,
+              height: 100,
+              position: 'relative',
+              borderRadius: 1,
+              overflow: 'hidden',
+              flexShrink: 0,
+              border: '1px solid',
+              borderColor: 'divider',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': {
+                transform: 'scale(1.05)'
+              }
             }}
             onClick={() => setBuyukResim(resim)}
-          />
+          >
+            <img
+              src={resim}
+              alt={`Eksiklik ${index + 1}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+            />
+          </Box>
         ))}
-      </div>
+      </Box>
     );
   };
 
@@ -109,7 +195,7 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
     <>
       <Box
         sx={{
-          height: 'calc(100vh - 400px)', // Header, filtreler ve diğer alanları çıkarıyoruz
+          height: 'calc(100vh - 400px)',
           overflowY: 'auto',
           '&::-webkit-scrollbar': {
             width: '8px',

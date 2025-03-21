@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { binaService } from '../services/binaService';
 import { useAuth } from './AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const SantiyeContext = createContext();
 
@@ -12,30 +12,76 @@ export const SantiyeProvider = ({ children }) => {
   const [yukleniyor, setYukleniyor] = useState(true);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Santiyeleri yükle
   useEffect(() => {
     const santiyeleriGetir = async () => {
       if (!currentUser) {
-        navigate('/login');
+        setYukleniyor(false);
         return;
       }
 
       try {
+        setYukleniyor(true);
         const data = await binaService.getSantiyeler();
         setSantiyeler(data);
+
+        // URL'den santiye ve blok ID'lerini al
+        const santiyeMatch = location.pathname.match(/\/santiye\/([^\/]+)/);
+        const blokMatch = location.pathname.match(/\/blok\/([^\/]+)/);
+
+        if (santiyeMatch && data.length > 0) {
+          const santiyeId = santiyeMatch[1];
+          const santiye = data.find(s => s.id === santiyeId);
+          if (santiye) {
+            setSeciliSantiye(santiye);
+
+            if (blokMatch && santiye.bloklar) {
+              const blokId = blokMatch[1];
+              const blok = santiye.bloklar.find(b => b.id === blokId);
+              if (blok) {
+                setSeciliBlok(blok);
+              }
+            }
+          }
+        }
       } catch (error) {
         console.error('Santiyeler yüklenirken hata:', error);
-        if (error.code === 'permission-denied') {
-          navigate('/login');
-        }
       } finally {
         setYukleniyor(false);
       }
     };
 
     santiyeleriGetir();
-  }, [currentUser, navigate]);
+  }, [currentUser, location.pathname]);
+
+  // Verileri yenileme fonksiyonu
+  const yenileVerileri = async () => {
+    try {
+      setYukleniyor(true);
+      const data = await binaService.getSantiyeler();
+      setSantiyeler(data);
+
+      // Seçili santiye ve bloğu güncelle
+      if (seciliSantiye) {
+        const guncelSantiye = data.find(s => s.id === seciliSantiye.id);
+        if (guncelSantiye) {
+          setSeciliSantiye(guncelSantiye);
+          if (seciliBlok) {
+            const guncelBlok = guncelSantiye.bloklar?.find(b => b.id === seciliBlok.id);
+            if (guncelBlok) {
+              setSeciliBlok(guncelBlok);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Veriler yenilenirken hata:', error);
+    } finally {
+      setYukleniyor(false);
+    }
+  };
 
   const value = {
     santiyeler,
@@ -44,7 +90,8 @@ export const SantiyeProvider = ({ children }) => {
     setSeciliSantiye,
     seciliBlok,
     setSeciliBlok,
-    yukleniyor
+    yukleniyor,
+    yenileVerileri
   };
 
   return (

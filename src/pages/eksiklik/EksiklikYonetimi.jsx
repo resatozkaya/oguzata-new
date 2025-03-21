@@ -106,7 +106,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
       // Başlık stili
       const titleStyle = {
         font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } },
         alignment: { horizontal: 'center', vertical: 'middle' },
         border: {
           top: { style: 'thin' },
@@ -147,24 +147,12 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         'Beklemede': 'FFFF6B6B', // Açık kırmızı
       };
 
-      // Başlık satırı
-      worksheet.mergeCells('A1:E1');
-      const titleCell = worksheet.getCell('A1');
-      titleCell.value = `${seciliSantiye?.ad || ''} - ${seciliBlok?.ad || ''} Eksiklik Raporu`;
-      titleCell.style = titleStyle;
-
-      // Tarih satırı
-      worksheet.mergeCells('A2:E2');
-      const dateCell = worksheet.getCell('A2');
-      dateCell.value = `Rapor Tarihi: ${new Date().toLocaleDateString('tr-TR')}`;
-      dateCell.style = { ...headerStyle, alignment: { horizontal: 'right' } };
-
       // Daire numaralarını doğru sıralamak için yardımcı fonksiyon
       const parseDaireNo = (daireNo) => {
         if (!daireNo || daireNo === 'Diğer') return { type: 'other', value: Number.MAX_SAFE_INTEGER };
         
         // Ortak alan kontrolü
-        const isOrtakAlan = /kat|hol|merdiven|toplantı|asansör|giriş/i.test(daireNo);
+        const isOrtakAlan = /kat|hol|merdiven|toplantı|asansör|giriş|yönetim/i.test(daireNo);
         if (isOrtakAlan) {
           return { 
             type: 'common',
@@ -180,190 +168,121 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         };
       };
 
-      // Verileri daire ve taşerona göre grupla
-      const grupluVeriler = filtrelenmisEksiklikler.reduce((acc, eksiklik) => {
-        const daireNo = eksiklik.daire || 'Diğer';
-        const taseron = eksiklik.taseron || 'Belirtilmemiş';
-
-        if (!acc[daireNo]) {
-          acc[daireNo] = {};
+      // Başlık satırı
+      worksheet.mergeCells('A1:F1');
+      const titleCell = worksheet.getCell('A1');
+      const taseron = filtrelenmisEksiklikler.length > 0 ? (filtrelenmisEksiklikler[0].taseron || 'Belirtilmemiş') : 'Belirtilmemiş';
+      titleCell.value = `${seciliSantiye?.ad || ''} - ${seciliBlok?.ad || ''} Eksiklik Raporu | ${taseron}`;
+      titleCell.style = {
+        font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        border: {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
         }
-        if (!acc[daireNo][taseron]) {
-          acc[daireNo][taseron] = [];
-        }
-        acc[daireNo][taseron].push(eksiklik);
-        return acc;
-      }, {});
+      };
+      titleCell.height = 30;
 
-      // Daire numaralarını akıllı sıralama ile düzenle
-      const siraliDaireler = Object.keys(grupluVeriler).sort((a, b) => {
-        const aInfo = parseDaireNo(a);
-        const bInfo = parseDaireNo(b);
-
-        // Farklı tipteki daireler için sıralama
-        if (aInfo.type !== bInfo.type) {
-          // Önce normal daireler
-          if (aInfo.type === 'apartment') return -1;
-          if (bInfo.type === 'apartment') return 1;
-          // Sonra ortak alanlar
-          if (aInfo.type === 'common') return -1;
-          if (bInfo.type === 'common') return 1;
-          // En son diğerleri
-          return 0;
-        }
-
-        // Aynı tipteki daireler için sıralama
-        if (aInfo.type === 'apartment') {
-          // Normal daire numaralarını sayısal olarak sırala
-          return aInfo.value - bInfo.value;
-        } else if (aInfo.type === 'common') {
-          // Ortak alanları alfabetik sırala
-          return aInfo.value.localeCompare(bInfo.value);
-        }
-        
-        // Diğer durumlar için varsayılan sıralama
-        return 0;
-      });
+      // Tarih satırı
+      worksheet.mergeCells('A2:F2');
+      const dateCell = worksheet.getCell('A2');
+      dateCell.value = `Rapor Tarihi: ${new Date().toLocaleDateString('tr-TR')}`;
+      dateCell.style = { 
+        ...headerStyle, 
+        alignment: { horizontal: 'right' },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } }
+      };
 
       // Excel'e eklenecek satırları oluştur
       let currentRow = 3;
-      let currentSection = '';
 
-      siraliDaireler.forEach(daireNo => {
-        const daireInfo = parseDaireNo(daireNo);
+      // Başlık satırı
+      const headerRow = worksheet.getRow(currentRow);
+      headerRow.values = ['Daire', 'No', 'Açıklama', 'Öncelik', 'Durum', 'Not'];
+      headerRow.eachCell(cell => {
+        cell.style = headerStyle;
+      });
+      currentRow++;
+
+      // Verileri daire numarasına göre sırala
+      const siraliEksiklikler = filtrelenmisEksiklikler.sort((a, b) => {
+        const aInfo = parseDaireNo(a.daire || 'Diğer');
+        const bInfo = parseDaireNo(b.daire || 'Diğer');
+
+        if (aInfo.type !== bInfo.type) {
+          if (aInfo.type === 'apartment') return -1;
+          if (bInfo.type === 'apartment') return 1;
+          if (aInfo.type === 'common') return -1;
+          if (bInfo.type === 'common') return 1;
+          return 0;
+        }
+
+        if (aInfo.type === 'apartment') {
+          return aInfo.value - bInfo.value;
+        } else if (aInfo.type === 'common') {
+          return aInfo.value.localeCompare(bInfo.value);
+        }
+        return 0;
+      });
+
+      // Eksiklikleri ekle
+      let currentDaire = '';
+      let index = 1;
+
+      siraliEksiklikler.forEach((eksiklik) => {
+        const row = worksheet.getRow(currentRow);
+        const daire = eksiklik.daire || 'Diğer';
         
-        // Bölüm değişikliği kontrolü
-        let yeniBolum = '';
-        if (daireInfo.type === 'apartment' && currentSection !== 'Daireler') {
-          yeniBolum = 'Daireler';
-        } else if (daireInfo.type === 'common' && currentSection !== 'Ortak Alanlar') {
-          yeniBolum = 'Ortak Alanlar';
-        } else if (daireInfo.type === 'other' && currentSection !== 'Diğer') {
-          yeniBolum = 'Diğer';
-        }
+        row.values = [
+          daire !== currentDaire ? daire : '', // Daire numarasını sadece değiştiğinde göster
+          index,
+          eksiklik.aciklama || '-',
+          eksiklik.oncelik || 'NORMAL',
+          eksiklik.durum || 'YENİ',
+          ''  // Not için boş sütun
+        ];
 
-        // Yeni bölüm başlığı ekle
-        if (yeniBolum) {
-          currentSection = yeniBolum;
-          const bolumBaslik = worksheet.getRow(currentRow);
-          worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
-          bolumBaslik.getCell(1).value = yeniBolum;
-          bolumBaslik.getCell(1).style = {
-            font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } },
-            alignment: { horizontal: 'center', vertical: 'middle' },
-            border: {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
+        row.eachCell((cell, colNumber) => {
+          cell.style = {
+            ...dataStyle,
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
+            alignment: {
+              ...dataStyle.alignment,
+              horizontal: colNumber === 3 ? 'left' : 'center'
             }
           };
-          bolumBaslik.height = 35;
-          currentRow++;
-        }
 
-        // Daire başlığı
-        const daireBaslik = worksheet.getRow(currentRow);
-        worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
-        daireBaslik.getCell(1).value = `${daireInfo.type === 'apartment' ? 'Daire' : ''} ${daireNo}`;
-        daireBaslik.getCell(1).style = {
-          font: { bold: true, size: 12 },
-          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4B5563' } },
-          alignment: { horizontal: 'left', vertical: 'middle' },
-          border: {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          }
-        };
-        daireBaslik.height = 30;
-        currentRow++;
-
-        // Her taşeron için eksiklikleri ekle
-        const taseronlar = Object.keys(grupluVeriler[daireNo]).sort();
-        taseronlar.forEach((taseron, taseronIndex) => {
-          const eksiklikler = grupluVeriler[daireNo][taseron];
-          
-          // Taşeron başlığı
-          const taseronBaslik = worksheet.getRow(currentRow);
-          worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
-          taseronBaslik.getCell(1).value = `${taseron} (${eksiklikler.length} iş)`;
-          taseronBaslik.getCell(1).style = {
-            font: { bold: true, italic: true },
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: taseronIndex % 2 === 0 ? 'FFF3F4F6' : 'FFE5E7EB' } },
-            alignment: { horizontal: 'left', vertical: 'middle' },
-            border: {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' }
-            }
-          };
-          taseronBaslik.height = 25;
-          currentRow++;
-
-          // Eksiklik başlıkları
-          const headerRow = worksheet.getRow(currentRow);
-          headerRow.values = ['No', 'Açıklama', 'Öncelik', 'Durum', 'Not'];
-          headerRow.eachCell(cell => {
-            cell.style = headerStyle;
-          });
-          currentRow++;
-
-          // Eksiklikleri ekle
-          eksiklikler.forEach((eksiklik, index) => {
-            const row = worksheet.getRow(currentRow);
-            row.values = [
-              index + 1,
-              eksiklik.aciklama || '-',
-              eksiklik.oncelik || 'NORMAL',
-              eksiklik.durum || 'YENİ',
-              ''  // Not için boş sütun
-            ];
-
-            row.eachCell((cell, colNumber) => {
-              cell.style = {
-                ...dataStyle,
-                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } },
-                alignment: {
-                  ...dataStyle.alignment,
-                  horizontal: colNumber === 2 ? 'left' : 'center'
-                }
+          // Durum hücresine renk uygula
+          if (colNumber === 5) {
+            const durumRenk = durumRenkleri[eksiklik.durum];
+            if (durumRenk) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: durumRenk }
               };
-
-              // Durum hücresine renk uygula
-              if (colNumber === 4) {
-                const durumRenk = durumRenkleri[eksiklik.durum];
-                if (durumRenk) {
-                  cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: durumRenk }
-                  };
-                }
-              }
-            });
-
-            row.height = 25;
-            currentRow++;
-          });
-
-          // Taşeron bölümü sonunda boşluk
-          if (taseronIndex < taseronlar.length - 1) {
-            currentRow++;
+            }
           }
         });
 
-        // Daire bölümü sonunda boşluk
+        row.height = 25;
         currentRow++;
+        
+        if (daire !== currentDaire) {
+          currentDaire = daire;
+          index = 1;
+        } else {
+          index++;
+        }
       });
 
       // Özet bilgiler
-      worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
+      worksheet.mergeCells(`A${currentRow}:F${currentRow}`);
       const summaryCell = worksheet.getCell(`A${currentRow}`);
-      summaryCell.value = `Toplam Eksiklik: ${filtrelenmisEksiklikler.length} | ` +
+      summaryCell.value = `Toplam: ${filtrelenmisEksiklikler.length} | ` +
         `Tamamlanan: ${filtrelenmisEksiklikler.filter(d => d.durum === 'Tamamlandı').length} | ` +
         `Devam Eden: ${filtrelenmisEksiklikler.filter(d => d.durum === 'Devam Ediyor').length} | ` +
         `Bekleyen: ${filtrelenmisEksiklikler.filter(d => d.durum === 'Beklemede').length}`;
@@ -374,11 +293,12 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
       };
 
       // Sütun genişliklerini ayarla
-      worksheet.getColumn(1).width = 5;  // No
-      worksheet.getColumn(2).width = 50; // Açıklama
-      worksheet.getColumn(3).width = 10; // Öncelik
-      worksheet.getColumn(4).width = 15; // Durum
-      worksheet.getColumn(5).width = 20; // Not
+      worksheet.getColumn(1).width = 10;  // Daire
+      worksheet.getColumn(2).width = 5;   // No
+      worksheet.getColumn(3).width = 50;  // Açıklama
+      worksheet.getColumn(4).width = 10;  // Öncelik
+      worksheet.getColumn(5).width = 15;  // Durum
+      worksheet.getColumn(6).width = 20;  // Not
 
       // Excel dosyasını oluştur ve indir
       const buffer = await workbook.xlsx.writeBuffer();

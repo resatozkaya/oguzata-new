@@ -1,10 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { enableIndexedDbPersistence } from 'firebase/firestore';
 
 const firebaseConfig = {
-  // Firebase config bilgileriniz buraya gelecek
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -16,13 +16,28 @@ const firebaseConfig = {
 // Firebase'i başlat
 const app = initializeApp(firebaseConfig);
 
-// Firestore veritabanını başlat
-export const db = getFirestore(app);
-
 // Authentication'ı başlat
-export const auth = getAuth(app);
+const auth = getAuth(app);
+
+// Firestore veritabanını başlat
+const db = getFirestore(app);
 
 // Storage'ı başlat
-export const storage = getStorage(app);
+const storage = getStorage(app);
 
-export default app;
+// Persistence ayarı
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db, {
+    synchronizeTabs: true
+  }).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firestore persistence requires a single tab');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Firestore persistence is not available');
+    } else {
+      console.error('Firestore persistence error:', err);
+    }
+  });
+}
+
+export { app, auth, db, storage };

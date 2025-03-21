@@ -31,9 +31,7 @@ import Kesintiler from './pages/Kesintiler';
 
 const App = () => {
   const { currentUser, loading } = useAuth();
-  const navigate = useNavigate();
 
-  // Auth yüklenirken loading göster
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -41,6 +39,17 @@ const App = () => {
       </Box>
     );
   }
+
+  // Ortak provider wrapper component
+  const ProviderWrapper = ({ children }) => (
+    <PermissionProvider>
+      <SantiyeProvider>
+        <DepoProvider>
+          {children}
+        </DepoProvider>
+      </SantiyeProvider>
+    </PermissionProvider>
+  );
 
   return (
     <SnackbarProvider 
@@ -50,41 +59,49 @@ const App = () => {
       dense
       preventDuplicate
     >
-      <PermissionProvider>
-        <SantiyeProvider>
-          <DepoProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/" />} />
-              <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/" />} />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={!currentUser ? <LoginPage /> : <Navigate to="/" />} />
+        <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/" />} />
+        
+        {/* Protected routes */}
+        {currentUser && (
+          <Route path="/*" element={
+            <ProviderWrapper>
+              <Layout>
+                <Routes>
+                  {/* Basic routes */}
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
 
-              {/* Protected routes */}
-              <Route element={currentUser ? <Layout /> : <Navigate to="/login" />}>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/personel" element={<PersonelListesi />} />
-                <Route path="/personel-kayit" element={<PersonelKayit />} />
-                <Route path="/personel/:id" element={<PersonelKayit />} />
-                <Route path="/santiye" element={<Santiye />} />
-                <Route path="/santiye/:id" element={<SantiyeDetay />} />
-                <Route path="/puantaj" element={<Puantaj />} />
-                <Route path="/depo" element={<DepoYonetimi />} />
-                <Route path="/gunluk-rapor" element={<GunlukRapor />} />
-                <Route path="/santiye/:santiyeId/blok/:blokId/eksiklikler" element={<EksiklikYonetimi />} />
-                <Route path="/teslimat-ekip" element={<EksiklikYonetimi showTeslimatEkip={true} />} />
-                <Route path="/mesajlar" element={<MesajlasmaSayfasi />} />
-                <Route path="/birim-fiyatlar" element={<BirimFiyatlar />} />
-                <Route path="/yesil-defter" element={<YesilDefterList />} />
-                <Route path="/yesil-defter/yeni" element={<YesilDefterForm />} />
-                <Route path="/yesil-defter/:id" element={<YesilDefterForm />} />
-                <Route path="/atasmanlar" element={<Atasmanlar />} />
-                <Route path="/kesintiler" element={<Kesintiler />} />
-              </Route>
-            </Routes>
-          </DepoProvider>
-        </SantiyeProvider>
-      </PermissionProvider>
+                  {/* Feature routes */}
+                  <Route path="/personel" element={<PersonelListesi />} />
+                  <Route path="/personel-kayit" element={<PersonelKayit />} />
+                  <Route path="/personel/:id" element={<PersonelKayit />} />
+                  <Route path="/santiye" element={<Santiye />} />
+                  <Route path="/santiye/:id" element={<SantiyeDetay />} />
+                  <Route path="/puantaj" element={<Puantaj />} />
+                  <Route path="/depo" element={<DepoYonetimi />} />
+                  <Route path="/gunluk-rapor" element={<GunlukRapor />} />
+                  <Route path="/santiye/:santiyeId/blok/:blokId/eksiklikler" element={<EksiklikYonetimi />} />
+                  <Route path="/teslimat-ekip" element={<EksiklikYonetimi showTeslimatEkip={true} />} />
+                  <Route path="/mesajlar" element={<MesajlasmaSayfasi />} />
+                  <Route path="/birim-fiyatlar" element={<BirimFiyatlar />} />
+                  <Route path="/yesilDefter" element={<YesilDefterList />} />
+                  <Route path="/yesilDefter/yeni" element={<YesilDefterForm />} />
+                  <Route path="/yesilDefter/:id" element={<YesilDefterForm />} />
+                  <Route path="/atasmanlar" element={<Atasmanlar />} />
+                  <Route path="/kesintiler" element={<Kesintiler />} />
+                </Routes>
+              </Layout>
+            </ProviderWrapper>
+          } />
+        )}
+
+        {/* Redirect to login if not authenticated */}
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>
     </SnackbarProvider>
   );
 };

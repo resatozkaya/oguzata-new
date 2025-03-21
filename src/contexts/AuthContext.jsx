@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { signOut, sendPasswordResetEmail, updatePassword as firebaseUpdatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { getDoc, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { USER_ROLES } from '../constants/permissions';
 
 const AuthContext = createContext();
@@ -16,8 +16,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
+      try {
+        if (user) {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
@@ -50,14 +50,25 @@ export const AuthProvider = ({ children }) => {
             await setDoc(doc(db, 'users', user.uid), newUser);
             setCurrentUser(newUser);
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
         }
-      } else {
-        setCurrentUser(null);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Hata durumunda bile temel kullanıcı bilgilerini ayarla
+        if (user) {
+          setCurrentUser({
+            uid: user.uid,
+            email: user.email,
+            roles: ['USER'],
+            permissions: []
+          });
+        } else {
+          setCurrentUser(null);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
