@@ -8,8 +8,6 @@ import SantiyeSecici from '../SantiyeSecici';
 import { useSantiye } from '../../contexts/SantiyeContext';
 import { useLocation } from 'react-router-dom';
 import ErrorBoundary from '../ErrorBoundary';
-import { Edit as EditIcon } from '@mui/icons-material';
-import BinaYapisiDuzenle from '../bina/BinaYapisiDuzenle';
 import { binaService } from '../../services/binaService';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../contexts/PermissionContext';
@@ -17,7 +15,6 @@ import { usePermission } from '../../contexts/PermissionContext';
 const Layout = ({ children }) => {
   const { isDarkMode } = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [duzenleDialogAcik, setDuzenleDialogAcik] = useState(false);
   const { 
     santiyeler, 
     setSantiyeler,
@@ -46,52 +43,13 @@ const Layout = ({ children }) => {
     });
   }, [location.pathname]);
 
-  // Bina yapısı düzenleme butonunun görüneceği sayfalar
-  const showBinaYapisiDuzenlePages = [
-    '/santiye/:santiyeId/blok/:blokId/eksiklikler',
-    '/teslimat-ekip'
-  ];
-
-  const shouldShowBinaYapisiDuzenle = useMemo(() => {
-    return showBinaYapisiDuzenlePages.some(pattern => {
-      if (!pattern.includes(':')) {
-        return location.pathname === pattern;
-      }
-      return location.pathname.match(new RegExp(pattern.replace(/:\w+/g, '[^/]+')));
-    });
-  }, [location.pathname]);
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
-  };
-
-  const handleBinaYapisiGuncelle = async (binaYapisi) => {
-    try {
-      await binaService.setBinaYapisi(
-        seciliSantiye?.id,
-        seciliBlok?.id,
-        {
-          bloklar: [{
-            ...seciliBlok,
-            katlar: binaYapisi.katlar
-          }]
-        }
-      );
-
-      if (typeof yenileVerileri === 'function') {
-        await yenileVerileri();
-      }
-      setDuzenleDialogAcik(false);
-    } catch (error) {
-      console.error('Bina yapısı güncellenirken hata:', error);
-      alert('Bina yapısı güncellenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
-    }
   };
 
   React.useEffect(() => {
     const loadData = async () => {
       try {
-        // Gerekli veriler yüklenirken
         setIsLoading(false);
       } catch (error) {
         console.error('Veriler yüklenirken hata:', error);
@@ -130,29 +88,11 @@ const Layout = ({ children }) => {
           {shouldShowSantiyeSecici && (
             <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
               <SantiyeSecici />
-              {shouldShowBinaYapisiDuzenle && seciliBlok && hasPermission('EDIT_BINA_YAPISI') && (
-                <Button
-                  variant="contained"
-                  startIcon={<EditIcon />}
-                  onClick={() => setDuzenleDialogAcik(true)}
-                >
-                  Bina Yapısını Düzenle
-                </Button>
-              )}
             </Box>
           )}
           {children}
         </ErrorBoundary>
       </Box>
-
-      {duzenleDialogAcik && (
-        <BinaYapisiDuzenle
-          open={duzenleDialogAcik}
-          onClose={() => setDuzenleDialogAcik(false)}
-          onSave={handleBinaYapisiGuncelle}
-          binaYapisi={seciliBlok}
-        />
-      )}
     </Box>
   );
 };

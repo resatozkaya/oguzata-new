@@ -19,14 +19,19 @@ import {
   DialogContent,
   DialogTitle,
   IconButton as MuiIconButton,
-  Button
+  Button,
+  Tooltip
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
+import EngineeringIcon from '@mui/icons-material/Engineering';
 import { useNavigate } from 'react-router-dom';
 import { personnelService } from '../services/personnelService';
+import { usePermission } from '../hooks/usePermission';
+import { PAGE_PERMISSIONS } from '../constants/permissions';
+import PersonelPermissionModal from '../components/personel/PersonelPermissionModal';
 
 const PersonelListesi = () => {
   const navigate = useNavigate();
@@ -37,6 +42,15 @@ const PersonelListesi = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedPersonel, setSelectedPersonel] = useState(null);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
+
+  // Yetki kontrolleri
+  const { hasPermission: canView } = usePermission(PAGE_PERMISSIONS.PERSONEL.VIEW);
+  const { hasPermission: canCreate } = usePermission(PAGE_PERMISSIONS.PERSONEL.CREATE);
+  const { hasPermission: canUpdate } = usePermission(PAGE_PERMISSIONS.PERSONEL.UPDATE);
+  const { hasPermission: canDelete } = usePermission(PAGE_PERMISSIONS.PERSONEL.DELETE);
+  const { hasPermission: canManagePermissions } = usePermission(PAGE_PERMISSIONS.PERSONEL.MANAGE_PERMISSIONS);
 
   useEffect(() => {
     loadPersonnel();
@@ -131,6 +145,10 @@ const PersonelListesi = () => {
     setSelectedImage({ url: imageUrl, name: personName });
   };
 
+  const handlePermissions = (id) => {
+    setPermissionModalOpen(true);
+  };
+
   return (
     <Box>
       {error && (
@@ -178,6 +196,7 @@ const PersonelListesi = () => {
           color="primary"
           startIcon={<AddIcon />}
           onClick={() => navigate('/personel/yeni')}
+          disabled={!canCreate}
         >
           Yeni Personel
         </Button>
@@ -255,25 +274,46 @@ const PersonelListesi = () => {
                       label={person.aktif ? 'AKTİF' : 'PASİF'}
                       color={person.aktif ? 'success' : 'default'}
                       size="small"
-                      onClick={() => handleStatusChange(person.id, person.aktif)}
-                      sx={{ cursor: 'pointer' }}
+                      onClick={() => canUpdate && handleStatusChange(person.id, person.aktif)}
+                      sx={{ cursor: canUpdate ? 'pointer' : 'not-allowed' }}
                     />
                   </TableCell>
                   <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEdit(person.id)}
-                      sx={{ color: 'primary.main' }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDelete(person.id)}
-                      sx={{ color: 'error.main' }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <Tooltip title={canUpdate ? "Düzenle" : "Düzenleme yetkiniz yok"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEdit(person.id)}
+                          sx={{ color: 'primary.main' }}
+                          disabled={!canUpdate}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title={canDelete ? "Sil" : "Silme yetkiniz yok"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(person.id)}
+                          sx={{ color: 'error.main' }}
+                          disabled={!canDelete}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    {canManagePermissions && (
+                      <Tooltip title="Yetkilendirme">
+                        <IconButton
+                          size="small"
+                          onClick={() => handlePermissions(person.id)}
+                          sx={{ color: 'info.main' }}
+                        >
+                          <EngineeringIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -317,6 +357,14 @@ const PersonelListesi = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Yetkilendirme Modal'ı */}
+      <PersonelPermissionModal
+        open={permissionModalOpen}
+        onClose={() => {
+          setPermissionModalOpen(false);
+        }}
+      />
     </Box>
   );
 };

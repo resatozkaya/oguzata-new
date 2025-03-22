@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Modal,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -25,7 +26,7 @@ import {
 import { enqueueSnackbar } from 'notistack';
 import { useSantiye } from '../../contexts/SantiyeContext';
 import { binaService } from '../../services/binaService';
-import { usePermission } from '../../hooks/usePermission';
+import { usePermission } from '../../contexts/PermissionContext';
 import { PAGE_PERMISSIONS } from '../../constants/permissions';
 import BinaGorunumu from './components/BinaGorunumu';
 import EksiklikIstatistikKartlari from './components/EksiklikIstatistikKartlari';
@@ -34,6 +35,9 @@ import EksiklikFiltrele from './components/EksiklikFiltrele';
 import EksiklikFormModal from './components/EksiklikFormModal';
 import ExcelJS from 'exceljs';
 import RolYetkilendirme from './components/RolYetkilendirme';
+import BinaYapisiDuzenle from './components/BinaYapisiDuzenle';
+import BlokYonetimi from './components/BlokYonetimi';
+import { saveAs } from 'file-saver';
 
 const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   const [eksiklikler, setEksiklikler] = useState([]);
@@ -52,16 +56,32 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   const [seciliDaire, setSeciliDaire] = useState(null);
   const [taseronlar, setTaseronlar] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(false);
-  // Tam ekran state'leri
   const [binaGorunumuTamEkran, setBinaGorunumuTamEkran] = useState(false);
   const [eksikliklerTamEkran, setEksikliklerTamEkran] = useState(false);
+  const [blokYonetimiOpen, setBlokYonetimiOpen] = useState(false);
+  const [binaYapisiOpen, setBinaYapisiOpen] = useState(false);
+  const [selectedBlokId, setSelectedBlokId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // Yetki kontrolleri
-  const canManageBinaYapisi = usePermission(PAGE_PERMISSIONS.EKSIKLIK.BINA_YAPISI);
-  const canManageBlok = usePermission(PAGE_PERMISSIONS.EKSIKLIK.BLOK_YONETIMI);
-  const canCreateEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.CREATE);
-  const canViewEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.VIEW);
-  const canManageEksiklik = usePermission(PAGE_PERMISSIONS.EKSIKLIK.MANAGE);
+  const { hasPermission } = usePermission();
+  const canManageBinaYapisi = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.BINA_YAPISI);
+  const canManageBloklar = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.BLOK_YONETIMI);
+  const canCreateEksiklik = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.CREATE);
+  const canViewEksiklik = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.VIEW);
+  const canManageEksiklik = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.MANAGE);
+  const canManagePermissions = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.MANAGE_PERMISSIONS);
+
+  useEffect(() => {
+    console.log('Yetki durumu:', {
+      canManageBinaYapisi,
+      canManageBloklar,
+      canCreateEksiklik,
+      canViewEksiklik,
+      canManageEksiklik,
+      canManagePermissions
+    });
+  }, [canManageBinaYapisi, canManageBloklar, canCreateEksiklik, canViewEksiklik, canManageEksiklik, canManagePermissions]);
 
   useEffect(() => {
     const yukle = async () => {
@@ -419,6 +439,62 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
     }));
   };
 
+  // Blok listesini getir
+  const fetchBloklar = async () => {
+    if (!seciliSantiye?.id) return;
+
+    try {
+      const bloklar = await binaService.getBloklar(seciliSantiye.id);
+      // Blok listesini güncelle
+      // TODO: Blok listesini context'e ekle
+    } catch (error) {
+      console.error('Bloklar yüklenirken hata:', error);
+      enqueueSnackbar('Bloklar yüklenirken hata oluştu', { variant: 'error' });
+    }
+  };
+
+  // Bina yapısını getir
+  const fetchBinaYapisi = async () => {
+    if (!seciliSantiye?.id || !seciliBlok?.id) return;
+
+    try {
+      const binaYapisiData = await binaService.getBinaYapisi(seciliSantiye.id, seciliBlok.id);
+      setBinaYapisi(null); // Önce null yaparak zorla yeniden render ettir
+      setTimeout(() => {
+        setBinaYapisi(binaYapisiData); // Sonra yeni veriyi set et
+      }, 0);
+      return binaYapisiData;
+    } catch (error) {
+      console.error('Bina yapısı yüklenirken hata:', error);
+      enqueueSnackbar('Bina yapısı yüklenirken hata oluştu', { variant: 'error' });
+      return null;
+    }
+  };
+
+  // Seçili blok değiştiğinde bina yapısını güncelle
+  useEffect(() => {
+    if (seciliBlok?.id) {
+      setSelectedBlokId(seciliBlok.id);
+      fetchBinaYapisi();
+    }
+  }, [seciliBlok?.id]);
+
+  const handleBinaYapisiGuncelle = async () => {
+    try {
+      setLoading(true);
+      // Bina yapısını yeniden yükle
+      const yeniBinaYapisi = await binaService.getBinaYapisi(seciliSantiye.id, seciliBlok.id);
+      setBinaYapisi(yeniBinaYapisi);
+      setBinaYapisiOpen(false);
+      enqueueSnackbar('Bina yapısı başarıyla güncellendi', { variant: 'success' });
+    } catch (error) {
+      console.error('Bina yapısı güncellenirken hata:', error);
+      enqueueSnackbar('Bina yapısı güncellenirken hata oluştu', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       {/* Üst Kısım - İstatistik Kartları */}
@@ -427,8 +503,8 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         sx={{
           '& .MuiGrid-item': {
             width: {
-              xs: '50%', // Mobilde 2 kart yan yana
-              sm: '25%'  // Tablet ve üstünde 4 kart yan yana
+              xs: '50%',
+              sm: '25%'
             }
           }
         }}
@@ -437,59 +513,74 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
       {/* Ana Grid Container */}
       <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} sx={{ mt: 2 }}>
         {/* Sol Panel - Bina Görünümü */}
-        <Grid 
-          item 
-          xs={12} 
-          md={binaGorunumuTamEkran ? 12 : 4} 
-          sx={{
-            display: { 
-              xs: binaGorunumuTamEkran ? 'block' : 'none', // Mobilde tam ekran değilse gizle
-              md: 'block' // Desktop'ta her zaman göster
-            }
-          }}
-        >
-          <Paper 
-            sx={{ 
-              p: { xs: 1, sm: 2 },
-              height: '100%',
-              minHeight: { xs: '300px', sm: '400px' }
-            }}
-          >
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              mb: 2 
-            }}>
+        <Grid item xs={12} md={binaGorunumuTamEkran ? 12 : 4}>
+          <Paper sx={{ p: { xs: 1, sm: 2 }, height: '100%', minHeight: { xs: '300px', sm: '400px' } }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Bina Görünümü</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {/* Yetkileri Düzenle Butonu */}
-                {canManageEksiklik && (
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    size="small"
-                    startIcon={<SecurityIcon />}
-                    onClick={() => setYetkiModalAcik(true)}
+              {seciliSantiye?.id && seciliBlok?.id && (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {/* Bina Yapısı Düzenleme Butonu */}
+                  {canManageBinaYapisi && (
+                    <Button
+                      variant="contained"
+                      onClick={() => setBinaYapisiOpen(true)}
+                      startIcon={<EditIcon />}
+                    >
+                      BİNA YAPISI
+                    </Button>
+                  )}
+
+                  {/* Blok Yönetimi Butonu */}
+                  {canManageBloklar && (
+                    <Button
+                      variant="contained"
+                      onClick={() => setBlokYonetimiOpen(true)}
+                      startIcon={<EditIcon />}
+                    >
+                      BLOK YÖNETİMİ
+                    </Button>
+                  )}
+
+                  {/* Yetki Yönetimi Butonu */}
+                  {canManagePermissions && (
+                    <Button
+                      variant="contained"
+                      onClick={() => setYetkiModalAcik(true)}
+                      startIcon={<SecurityIcon />}
+                    >
+                      YETKİLER
+                    </Button>
+                  )}
+
+                  {/* Tam Ekran Butonu */}
+                  <IconButton
+                    onClick={() => setBinaGorunumuTamEkran(true)}
+                    sx={{ display: { xs: 'none', md: 'inline-flex' } }}
                   >
-                    YETKİLERİ DÜZENLE
-                  </Button>
-                )}
-                
-                {/* Tam Ekran Butonu */}
-                <IconButton
-                  onClick={() => setBinaGorunumuTamEkran(true)}
-                  sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-                >
-                  <FullscreenIcon />
-                </IconButton>
-              </Box>
+                    <FullscreenIcon />
+                  </IconButton>
+                </Box>
+              )}
             </Box>
-            <BinaGorunumu
-              binaYapisi={binaYapisi}
-              onDaireClick={handleDaireSecim}
-              eksiklikler={eksiklikler}
-            />
+            {!seciliSantiye?.id || !seciliBlok?.id ? (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100%',
+                minHeight: '200px'
+              }}>
+                <Typography color="textSecondary">
+                  Lütfen şantiye ve blok seçimi yapınız
+                </Typography>
+              </Box>
+            ) : (
+              <BinaGorunumu
+                binaYapisi={binaYapisi}
+                onDaireClick={handleDaireSecim}
+                eksiklikler={eksiklikler}
+              />
+            )}
           </Paper>
         </Grid>
 
@@ -500,8 +591,8 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
           md={eksikliklerTamEkran || !binaGorunumuTamEkran ? 8 : 12}
           sx={{
             display: {
-              xs: !binaGorunumuTamEkran ? 'block' : 'none', // Mobilde bina görünümü tam ekran değilse göster
-              md: 'block' // Desktop'ta her zaman göster
+              xs: !binaGorunumuTamEkran ? 'block' : 'none',
+              md: 'block'
             }
           }}
         >
@@ -515,56 +606,66 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
               alignItems: { xs: 'stretch', sm: 'center' },
               justifyContent: 'space-between'
             }}>
-              {/* Filtreler */}
-              <Box sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' },
-                gap: 1,
-                flex: 1
-              }}>
-                <EksiklikFiltrele
-                  filtreler={filtreler}
-                  setFiltreler={setFiltreler}
-                  taseronlar={taseronlar}
-                  sx={{
-                    '& .MuiFormControl-root': {
-                      minWidth: { xs: '100%', sm: '150px' }
-                    }
-                  }}
-                />
-              </Box>
+              {seciliSantiye?.id && seciliBlok?.id ? (
+                <>
+                  {/* Filtreler */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: 1,
+                    flex: 1
+                  }}>
+                    <EksiklikFiltrele
+                      filtreler={filtreler}
+                      setFiltreler={setFiltreler}
+                      taseronlar={taseronlar}
+                      sx={{
+                        '& .MuiFormControl-root': {
+                          minWidth: { xs: '100%', sm: '150px' }
+                        }
+                      }}
+                    />
+                  </Box>
 
-              {/* Aksiyon Butonları */}
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 1,
-                flexWrap: 'wrap',
-                justifyContent: { xs: 'flex-start', sm: 'flex-end' }
-              }}>
-                {canCreateEksiklik && (
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => {
-                      setSeciliEksiklik(null);
-                      setFormModalAcik(true);
-                    }}
-                    sx={{ flex: { xs: 1, sm: 'initial' } }}
-                  >
-                    Yeni Eksiklik
-                  </Button>
-                )}
-                {canManageEksiklik && (
-                  <Button
-                    variant="outlined"
-                    startIcon={<ExportIcon />}
-                    onClick={handleExcelExport}
-                    sx={{ flex: { xs: 1, sm: 'initial' } }}
-                  >
-                    Excel
-                  </Button>
-                )}
-              </Box>
+                  {/* Aksiyon Butonları */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 1,
+                    flexWrap: 'wrap',
+                    justifyContent: { xs: 'flex-start', sm: 'flex-end' }
+                  }}>
+                    {canCreateEksiklik && (
+                      <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => {
+                          setSeciliEksiklik(null);
+                          setFormModalAcik(true);
+                        }}
+                        sx={{ flex: { xs: 1, sm: 'initial' } }}
+                      >
+                        Yeni Eksiklik
+                      </Button>
+                    )}
+                    {canManageEksiklik && (
+                      <Button
+                        variant="outlined"
+                        startIcon={<ExportIcon />}
+                        onClick={handleExcelExport}
+                        sx={{ flex: { xs: 1, sm: 'initial' } }}
+                      >
+                        Excel
+                      </Button>
+                    )}
+                  </Box>
+                </>
+              ) : (
+                <Box sx={{ width: '100%', textAlign: 'center', py: 2 }}>
+                  <Typography color="textSecondary">
+                    Eksiklik yönetimi için lütfen şantiye ve blok seçimi yapınız
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             {/* Eksiklik Listesi Başlık */}
@@ -575,33 +676,48 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
               mb: 2 
             }}>
               <Typography variant="h6">Eksiklikler</Typography>
-              <IconButton
-                onClick={() => setEksikliklerTamEkran(true)}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-              >
-                <FullscreenIcon />
-              </IconButton>
+              {seciliSantiye?.id && seciliBlok?.id && (
+                <IconButton
+                  onClick={() => setEksikliklerTamEkran(true)}
+                  sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                >
+                  <FullscreenIcon />
+                </IconButton>
+              )}
             </Box>
 
             {/* Eksiklik Listesi */}
-            <EksiklikListesi
-              eksiklikler={filtrelenmisEksiklikler}
-              onDuzenle={(eksiklik) => {
-                setSeciliEksiklik(eksiklik);
-                setFormModalAcik(true);
-              }}
-              onSil={handleEksiklikSil}
-              sx={{
-                '& .MuiGrid-item': {
-                  width: {
-                    xs: '100%',    // Mobilde tam genişlik
-                    sm: '50%',     // Tablet'te 2 kolon
-                    md: '33.33%',  // Desktop'ta 3 kolon
-                    lg: '25%'      // Geniş ekranda 4 kolon
+            {seciliSantiye?.id && seciliBlok?.id ? (
+              <EksiklikListesi
+                eksiklikler={filtrelenmisEksiklikler}
+                onDuzenle={(eksiklik) => {
+                  setSeciliEksiklik(eksiklik);
+                  setFormModalAcik(true);
+                }}
+                onSil={handleEksiklikSil}
+                sx={{
+                  '& .MuiGrid-item': {
+                    width: {
+                      xs: '100%',
+                      sm: '50%',
+                      md: '33.33%',
+                      lg: '25%'
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            ) : (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                height: '200px'
+              }}>
+                <Typography color="textSecondary">
+                  Eksiklikleri görüntülemek için şantiye ve blok seçimi yapınız
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
       </Grid>
@@ -673,6 +789,71 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Blok Yönetimi Modal */}
+      <Dialog
+        open={blokYonetimiOpen}
+        onClose={() => setBlokYonetimiOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Blok Yönetimi
+          <IconButton
+            onClick={() => setBlokYonetimiOpen(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <BlokYonetimi
+            santiyeId={seciliSantiye?.id}
+            onClose={() => setBlokYonetimiOpen(false)}
+            onUpdate={() => {
+              setBlokYonetimiOpen(false);
+              fetchBloklar();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Bina Yapısı Düzenleme Modal */}
+      {binaYapisiOpen && (
+        <Modal
+          open={binaYapisiOpen}
+          onClose={() => setBinaYapisiOpen(false)}
+          aria-labelledby="bina-yapisi-duzenle"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2
+          }}
+        >
+          <Box sx={{
+            bgcolor: 'background.paper',
+            borderRadius: 1,
+            boxShadow: 24,
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            width: '1200px',
+            overflow: 'auto'
+          }}>
+            <BinaYapisiDuzenle
+              santiyeId={seciliSantiye?.id}
+              blokId={seciliBlok?.id}
+              binaYapisi={binaYapisi}
+              onClose={() => setBinaYapisiOpen(false)}
+              onUpdate={handleBinaYapisiGuncelle}
+            />
+          </Box>
+        </Modal>
+      )}
 
       {/* Yetki Modal */}
       <RolYetkilendirme

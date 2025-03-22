@@ -10,7 +10,8 @@ import {
   where,
   deleteDoc,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  addDoc
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -19,10 +20,10 @@ import {
   deleteObject 
 } from 'firebase/storage';
 
-class BinaService {
-  // Geçici değişiklikleri tutmak için private map
-  #geciciDegisiklikler = new Map();
+// Geçici değişiklikleri tutmak için map
+const geciciDegisiklikler = new Map();
 
+export const binaService = {
   // Bina yapısını getir
   async getBlokBilgileri(santiyeId, blokId) {
     try {
@@ -65,19 +66,22 @@ class BinaService {
       console.error('Blok bilgileri alınırken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok listesini getir
   async getBloklar(santiyeId) {
     try {
-      const bloklarRef = collection(db, `santiyeler/${santiyeId}/bloklar`);
+      const bloklarRef = collection(db, 'santiyeler', santiyeId, 'bloklar');
       const snapshot = await getDocs(bloklarRef);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
     } catch (error) {
-      console.error('Bloklar alınırken hata:', error);
+      console.error('Bloklar getirilirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Kat bilgilerini getir
   async getKatBilgileri(santiyeId, blokId, katNo) {
@@ -90,7 +94,7 @@ class BinaService {
       console.error('Kat bilgileri alınırken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Daire bilgilerini getir
   async getDaireBilgileri(santiyeId, blokId, katNo, daireNo) {
@@ -103,7 +107,7 @@ class BinaService {
       console.error('Daire bilgileri alınırken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok adını güncelle
   async blokGuncelle(santiyeId, blokId, yeniAd) {
@@ -133,7 +137,7 @@ class BinaService {
       console.error('Blok güncellenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok sil
   async blokSil(santiyeId, blokId) {
@@ -142,7 +146,7 @@ class BinaService {
     });
     if (!response.ok) throw new Error('Blok silinemedi');
     return response.json();
-  }
+  },
 
   // Şantiyeleri getir
   async getSantiyeler() {
@@ -171,7 +175,7 @@ class BinaService {
       console.error('Şantiyeler getirilirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Kat ekle
   async katEkle(santiyeId, blokId, katTipi = 'NORMAL') {
@@ -233,7 +237,7 @@ class BinaService {
       console.error('Kat eklenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Kat sil
   async katSil(santiyeId, blokId, katNo) {
@@ -252,7 +256,7 @@ class BinaService {
       console.error('Kat silinirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Daire ekle
   async daireEkle(santiyeId, blokId, katNo) {
@@ -286,7 +290,7 @@ class BinaService {
       console.error('Daire eklenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Daire sil
   async daireSil(santiyeId, blokId, katNo, daireIndex) {
@@ -310,7 +314,7 @@ class BinaService {
       console.error('Daire silinirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok ekle/güncelle
   async blokKaydet(santiyeId, blokId, blokData) {
@@ -324,7 +328,7 @@ class BinaService {
       console.error('Blok kaydedilirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok istatistiklerini getir
   async getBlokIstatistikleri(santiyeId, blokId) {
@@ -355,7 +359,7 @@ class BinaService {
       console.error('Blok istatistikleri alınırken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Mevcut bina yapısını temizle
   async temizleBinaYapisi(santiyeId, blokId) {
@@ -387,7 +391,7 @@ class BinaService {
       console.error('Bina yapısı temizlenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Blok yapısı oluştur (güncellendi)
   async blokYapisiOlustur(santiyeId, blokId, katSayisi = 8) {
@@ -436,7 +440,7 @@ class BinaService {
       console.error('Blok yapısı oluşturulurken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Yeni blok oluştur
   async yeniBlokOlustur(santiyeId, blokAd, katSayisi = 8, daireSayisi = 4) {
@@ -480,22 +484,22 @@ class BinaService {
       console.error('Yeni blok oluşturulurken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Yeni kat tipleri
-  KAT_TIPLERI = {
+  KAT_TIPLERI: {
     NORMAL: "NORMAL",
     ZEMIN: "ZEMIN",
     CATI: "CATI",
     BODRUM: "BODRUM"
-  };
+  },
 
   // Geçici değişiklik ekle
   geciciDegisiklikEkle(santiyeId, blokId, degisiklik) {
     const key = `${santiyeId}_${blokId}`;
-    const mevcutDegisiklikler = this.#geciciDegisiklikler.get(key) || [];
-    this.#geciciDegisiklikler.set(key, [...mevcutDegisiklikler, degisiklik]);
-  }
+    const mevcutDegisiklikler = geciciDegisiklikler.get(key) || [];
+    geciciDegisiklikler.set(key, [...mevcutDegisiklikler, degisiklik]);
+  },
 
   // Kat ekle (geçici)
   async katEkleGecici(santiyeId, blokId, katData) {
@@ -504,7 +508,7 @@ class BinaService {
       data: katData
     });
     return await this.getBlokBilgileri(santiyeId, blokId);
-  }
+  },
 
   // Kat sil (geçici)
   async katSilGecici(santiyeId, blokId, katNo) {
@@ -513,7 +517,7 @@ class BinaService {
       katNo: katNo
     });
     return await this.getBlokBilgileri(santiyeId, blokId);
-  }
+  },
 
   // Daire ekle (geçici)
   async daireEkleGecici(santiyeId, blokId, katNo, daire) {
@@ -523,7 +527,7 @@ class BinaService {
       data: daire
     });
     return await this.getBlokBilgileri(santiyeId, blokId);
-  }
+  },
 
   // Daire sil (geçici)
   async daireSilGecici(santiyeId, blokId, katNo, daireNo) {
@@ -533,13 +537,13 @@ class BinaService {
       daireNo: daireNo
     });
     return await this.getBlokBilgileri(santiyeId, blokId);
-  }
+  },
 
   // Tüm değişiklikleri kaydet
   async degisiklikleriKaydet(santiyeId, blokId) {
     try {
       const key = `${santiyeId}_${blokId}`;
-      const degisiklikler = this.#geciciDegisiklikler.get(key) || [];
+      const degisiklikler = geciciDegisiklikler.get(key) || [];
       const blokRef = doc(db, `santiyeler/${santiyeId}/bloklar/${blokId}`);
       const blokDoc = await getDoc(blokRef);
       
@@ -590,20 +594,20 @@ class BinaService {
       });
 
       // Geçici değişiklikleri temizle
-      this.#geciciDegisiklikler.delete(key);
+      geciciDegisiklikler.delete(key);
       
       return await this.getBlokBilgileri(santiyeId, blokId);
     } catch (error) {
       console.error('Değişiklikler kaydedilirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Değişiklikleri iptal et
   degisiklikleriIptalEt(santiyeId, blokId) {
     const key = `${santiyeId}_${blokId}`;
-    this.#geciciDegisiklikler.delete(key);
-  }
+    geciciDegisiklikler.delete(key);
+  },
 
   // Bina yapısını kaydet
   async setBinaYapisi(santiyeId, blokId, yeniYapi) {
@@ -621,7 +625,7 @@ class BinaService {
       console.error('Bina yapısı kaydedilirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Eksiklikleri getir
   async getEksiklikler(santiyeId, blokId) {
@@ -648,16 +652,16 @@ class BinaService {
       console.error('Eksiklikler alınırken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Base64 boyutunu kontrol et (max 5MB)
-  isValidImageSize = (base64String) => {
+  isValidImageSize: (base64String) => {
     // Base64 stringinin boyutunu hesapla (byte cinsinden)
     const base64Length = base64String.length - (base64String.indexOf(',') + 1);
     const sizeInBytes = (base64Length * 3) / 4;
     const sizeInMB = sizeInBytes / (1024 * 1024);
     return sizeInMB <= 5;
-  };
+  },
 
   // Eksiklik ekle
   async eksiklikEkle(santiyeId, blokId, eksiklik) {
@@ -691,7 +695,7 @@ class BinaService {
       console.error('Eksiklik eklenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Eksiklik güncelle
   async eksiklikGuncelle(santiyeId, blokId, eksiklik) {
@@ -722,7 +726,7 @@ class BinaService {
       console.error('Eksiklik güncellenirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Eksiklik sil
   async eksiklikSil(santiyeId, blokId, eksiklikId) {
@@ -733,7 +737,7 @@ class BinaService {
       console.error('Eksiklik silinirken hata:', error);
       throw error;
     }
-  }
+  },
 
   // Taşeronları getir
   async getTaseronlar() {
@@ -759,8 +763,120 @@ class BinaService {
       console.error('Taşeronlar alınırken hata:', error);
       return []; // Hata durumunda boş liste döndür
     }
-  }
-}
+  },
 
-// Tek bir instance oluştur ve export et
-export const binaService = new BinaService();
+  // Blok Yönetimi
+  async createBlok(santiyeId, blokData) {
+    try {
+      const bloklarRef = collection(db, 'santiyeler', santiyeId, 'bloklar');
+      const docRef = await addDoc(bloklarRef, {
+        ...blokData,
+        createdAt: new Date()
+      });
+      return {
+        id: docRef.id,
+        ...blokData
+      };
+    } catch (error) {
+      console.error('Blok eklenirken hata:', error);
+      throw error;
+    }
+  },
+
+  async updateBlok(santiyeId, blokId, blokData) {
+    try {
+      const blokRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId);
+      await updateDoc(blokRef, {
+        ...blokData,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Blok güncellenirken hata:', error);
+      throw error;
+    }
+  },
+
+  async deleteBlok(santiyeId, blokId) {
+    try {
+      const blokRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId);
+      await deleteDoc(blokRef);
+    } catch (error) {
+      console.error('Blok silinirken hata:', error);
+      throw error;
+    }
+  },
+
+  // Bina Yapısı Yönetimi
+  async getBinaYapisi(santiyeId, blokId) {
+    try {
+      const yapiRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId);
+      const docSnap = await getDoc(yapiRef);
+      return docSnap.exists() ? docSnap.data() : null;
+    } catch (error) {
+      console.error('Bina yapısı getirilirken hata:', error);
+      throw error;
+    }
+  },
+
+  async updateBinaYapisi(santiyeId, blokId, yapiData) {
+    try {
+      const yapiRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId, 'yapi', 'default');
+      await setDoc(yapiRef, {
+        ...yapiData,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Bina yapısı güncellenirken hata:', error);
+      throw error;
+    }
+  },
+
+  // Daire İşlemleri
+  async getDaireler(santiyeId, blokId) {
+    try {
+      const dairelerRef = collection(db, 'santiyeler', santiyeId, 'bloklar', blokId, 'daireler');
+      const snapshot = await getDocs(dairelerRef);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Daireler getirilirken hata:', error);
+      throw error;
+    }
+  },
+
+  async getDaireByNo(santiyeId, blokId, daireNo) {
+    try {
+      const dairelerRef = collection(db, 'santiyeler', santiyeId, 'bloklar', blokId, 'daireler');
+      const q = query(dairelerRef, where('daireNo', '==', daireNo));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return null;
+      }
+      
+      const doc = snapshot.docs[0];
+      return {
+        id: doc.id,
+        ...doc.data()
+      };
+    } catch (error) {
+      console.error('Daire getirilirken hata:', error);
+      throw error;
+    }
+  },
+
+  async updateDaire(santiyeId, blokId, daireId, daireData) {
+    try {
+      const daireRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId, 'daireler', daireId);
+      await updateDoc(daireRef, {
+        ...daireData,
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Daire güncellenirken hata:', error);
+      throw error;
+    }
+  }
+};

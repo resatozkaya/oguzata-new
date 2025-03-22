@@ -21,6 +21,7 @@ export const PAGE_PERMISSIONS = {
     UPDATE: 'personel_update',
     DELETE: 'personel_delete',
     MANAGE: 'personel_manage',
+    MANAGE_PERMISSIONS: 'personel_manage_permissions', // Personel yetkilerini yönetme
   },
   SANTIYE: {
     VIEW: 'santiye_view',
@@ -28,6 +29,7 @@ export const PAGE_PERMISSIONS = {
     UPDATE: 'santiye_update',
     DELETE: 'santiye_delete',
     MANAGE: 'santiye_manage',
+    MANAGE_PERMISSIONS: 'santiye_manage_permissions', // Şantiye yetkilerini yönetme
   },
   PUANTAJ: {
     VIEW: 'puantaj_view',
@@ -49,9 +51,9 @@ export const PAGE_PERMISSIONS = {
     UPDATE: 'eksiklik_update',
     DELETE: 'eksiklik_delete',
     MANAGE: 'eksiklik_manage',
-    VIEW_ALL: 'eksiklik_view_all',
-    BINA_YAPISI: 'eksiklik_bina_yapisi',  // Bina yapısını düzenleme yetkisi
-    BLOK_YONETIMI: 'eksiklik_blok_yonetimi'  // Blok yönetimi yetkisi
+    BINA_YAPISI: 'eksiklik_bina_yapisi',
+    BLOK_YONETIMI: 'eksiklik_blok_yonetimi',
+    MANAGE_PERMISSIONS: 'eksiklik_manage_permissions'
   },
   SOZLESME: {
     VIEW: 'sozlesme_view',
