@@ -1,8 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,11 +15,11 @@ const firebaseConfig = {
 // Firebase'i başlat
 const app = initializeApp(firebaseConfig);
 
-// Authentication'ı başlat
-const auth = getAuth(app);
-
 // Firestore veritabanını başlat
 const db = getFirestore(app);
+
+// Authentication'ı başlat
+const auth = getAuth(app);
 
 // Storage'ı başlat
 const storage = getStorage(app);
@@ -28,7 +27,8 @@ const storage = getStorage(app);
 // Persistence ayarı
 if (typeof window !== 'undefined') {
   enableIndexedDbPersistence(db, {
-    synchronizeTabs: true
+    synchronizeTabs: true,
+    experimentalForceOwningTab: true
   }).catch((err) => {
     if (err.code === 'failed-precondition') {
       console.warn('Firestore persistence requires a single tab');
@@ -38,6 +38,16 @@ if (typeof window !== 'undefined') {
       console.error('Firestore persistence error:', err);
     }
   });
+}
+
+// Google API uyarılarını gizle
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => {
+    if (e.message.includes('Tracking Prevention')) {
+      e.stopPropagation();
+      return false;
+    }
+  }, true);
 }
 
 export { app, auth, db, storage };

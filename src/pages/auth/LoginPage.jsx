@@ -10,7 +10,7 @@ import {
   Container,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
@@ -105,8 +105,9 @@ const LoginPage = () => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            bgcolor: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: 2
+            bgcolor: 'white',
+            borderRadius: 2,
+            width: '100%'
           }}
         >
           <img
@@ -162,41 +163,7 @@ const LoginPage = () => {
               autoComplete="email"
               value={formData.email}
               onChange={handleChange}
-              sx={{ 
-                mb: 2,
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 0, 0, 0.23)',
-                    borderWidth: 2,
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#1a237e',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#1a237e',
-                    borderWidth: 2,
-                  },
-                  '& input': {
-                    color: '#000000',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'rgba(0, 0, 0, 0.7)',
-                  '&.Mui-focused': {
-                    color: '#1a237e',
-                  },
-                },
-              }}
-              InputProps={{
-                sx: { 
-                  fontSize: '1rem',
-                  backgroundColor: 'white',
-                }
-              }}
-              InputLabelProps={{
-                sx: { fontSize: '1rem' }
-              }}
+              sx={{ mb: 2 }}
             />
 
             <TextField
@@ -209,41 +176,7 @@ const LoginPage = () => {
               autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
-              sx={{ 
-                mb: 3,
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 0, 0, 0.23)',
-                    borderWidth: 2,
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#1a237e',
-                    borderWidth: 2,
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#1a237e',
-                    borderWidth: 2,
-                  },
-                  '& input': {
-                    color: '#000000',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'rgba(0, 0, 0, 0.7)',
-                  '&.Mui-focused': {
-                    color: '#1a237e',
-                  },
-                },
-              }}
-              InputProps={{
-                sx: { 
-                  fontSize: '1rem',
-                  backgroundColor: 'white',
-                }
-              }}
-              InputLabelProps={{
-                sx: { fontSize: '1rem' }
-              }}
+              sx={{ mb: 3 }}
             />
 
             <Button

@@ -6,92 +6,121 @@ import {
   DialogActions,
   TextField,
   Button,
-  Alert
+  Alert,
+  Box
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 
 const ChangePasswordModal = ({ open, onClose }) => {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const { updatePassword } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (newPassword !== confirmPassword) {
-      return setError('Yeni şifreler eşleşmiyor');
+    setError('');
+    setSuccess(false);
+
+    // Validate passwords
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('Yeni şifreler eşleşmiyor');
+      return;
     }
 
-    if (newPassword.length < 6) {
-      return setError('Şifre en az 6 karakter olmalıdır');
+    if (passwordData.newPassword.length < 6) {
+      setError('Yeni şifre en az 6 karakter olmalıdır');
+      return;
     }
 
     try {
-      setError('');
       setLoading(true);
-      await updatePassword(newPassword);
-      onClose();
-    } catch (error) {
-      setError('Şifre güncellenirken bir hata oluştu');
-      console.error('Şifre güncelleme hatası:', error);
+      await updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      setSuccess(true);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err) {
+      setError(err.message || 'Şifre değiştirme işlemi başarısız oldu');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setError('');
-    onClose();
-  };
-
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Şifre Değiştir</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <TextField
-            label="Mevcut Şifre"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
-          <TextField
-            label="Yeni Şifre"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-          />
-          <TextField
-            label="Yeni Şifre (Tekrar)"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Şifreniz başarıyla değiştirildi!
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Mevcut Şifre"
+              type="password"
+              name="currentPassword"
+              value={passwordData.currentPassword}
+              onChange={handleChange}
+              required
+              fullWidth
+            />
+            <TextField
+              label="Yeni Şifre"
+              type="password"
+              name="newPassword"
+              value={passwordData.newPassword}
+              onChange={handleChange}
+              required
+              fullWidth
+            />
+            <TextField
+              label="Yeni Şifre (Tekrar)"
+              type="password"
+              name="confirmPassword"
+              value={passwordData.confirmPassword}
+              onChange={handleChange}
+              required
+              fullWidth
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>İptal</Button>
+          <Button onClick={onClose} disabled={loading}>
+            İptal
+          </Button>
           <Button 
             type="submit" 
             variant="contained" 
             disabled={loading}
+            sx={{ bgcolor: '#3f51b5' }}
           >
-            Şifreyi Güncelle
+            Şifreyi Değiştir
           </Button>
         </DialogActions>
       </form>

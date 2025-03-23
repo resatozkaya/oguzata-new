@@ -33,13 +33,38 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useTheme } from '@mui/material/styles';
 import RaporForm from '../components/rapor/RaporForm';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermission } from '../contexts/PermissionContext';
+import { enqueueSnackbar } from 'notistack';
 import { format } from 'date-fns';
 
 const GunlukRapor = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const { currentUser } = useAuth();
+  const { hasPermission } = usePermission();
   
+  // Yetki kontrolleri
+  const canView = hasPermission('gunluk_rapor_view');
+  const canEdit = hasPermission('gunluk_rapor_update');
+  const canCreate = hasPermission('gunluk_rapor_create');
+  const canDelete = hasPermission('gunluk_rapor_delete');
+  const isYonetim = hasPermission('YONETIM');
+
+  // Rapor yetki kontrolü için yardımcı fonksiyon
+  const canManageReport = (rapor) => {
+    if (isYonetim) return true; // YÖNETİM rolü tüm raporları yönetebilir
+    return rapor.createdBy === currentUser.email; // Diğer kullanıcılar sadece kendi raporlarını
+  };
+
+  // Sayfa yetkisi kontrolü
+  useEffect(() => {
+    if (!canView) {
+      enqueueSnackbar('Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      navigate('/');
+      return;
+    }
+  }, [canView, navigate]);
+
   const [personelList, setPersonelList] = useState([]);
   const [santiyeList, setSantiyeList] = useState([]);
   const [selectedPersonel, setSelectedPersonel] = useState("");
@@ -290,6 +315,16 @@ const GunlukRapor = () => {
   };
 
   const handleEdit = (rapor) => {
+    if (!canEdit) {
+      enqueueSnackbar('Rapor düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    if (!canManageReport(rapor)) {
+      enqueueSnackbar('Sadece kendi raporlarınızı düzenleyebilirsiniz.', { variant: 'error' });
+      return;
+    }
+
     try {
       setEditMode(true);
       setEditRaporId(rapor.id);
@@ -313,13 +348,18 @@ const GunlukRapor = () => {
 
     } catch (error) {
       console.error("Düzenleme hatası:", error);
-      alert("Düzenleme moduna geçerken bir hata oluştu!");
+      enqueueSnackbar("Düzenleme moduna geçerken bir hata oluştu!", { variant: "error" });
     }
   };
 
   const handleSave = async () => {
+    if (!canCreate) {
+      enqueueSnackbar('Rapor oluşturma yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
     if (!selectedPersonel || !selectedSantiye || !yapilanIs || !selectedDate) {
-      alert("Lütfen tüm alanları doldurun!");
+      enqueueSnackbar("Lütfen tüm alanları doldurun!", { variant: 'warning' });
       return;
     }
   
@@ -357,19 +397,24 @@ const GunlukRapor = () => {
         firma: "",
         calismaSekli: ""
       });
-      alert("Rapor başarıyla kaydedildi!");
+      enqueueSnackbar("Rapor başarıyla kaydedildi!", { variant: 'success' });
       
       // Yeni raporu ekledikten sonra listeyi güncelle
       await fetchAllRaporlar();
     } catch (error) {
       console.error("Rapor kaydetme hatası:", error);
-      alert("Rapor kaydedilirken bir hata oluştu!");
+      enqueueSnackbar("Rapor kaydedilirken hata oluştu", { variant: "error" });
     }
   };
 
   const handleUpdate = async () => {
+    if (!canEdit) {
+      enqueueSnackbar('Rapor düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
     if (!editRaporId || !selectedPersonel || !selectedSantiye || !yapilanIs) {
-      alert("Lütfen tüm alanları doldurun!");
+      enqueueSnackbar("Lütfen tüm alanları doldurun!", { variant: 'warning' });
       return;
     }
   
@@ -407,18 +452,27 @@ const GunlukRapor = () => {
         firma: "",
         calismaSekli: ""
       });
-  
-      alert("Rapor başarıyla güncellendi!");
+      enqueueSnackbar("Rapor başarıyla güncellendi!", { variant: 'success' });
       
       // Güncellemeden sonra listeyi yenile
       await fetchAllRaporlar();
     } catch (error) {
       console.error("Rapor güncelleme hatası:", error);
-      alert("Rapor güncellenirken bir hata oluştu!");
+      enqueueSnackbar("Rapor güncellenirken hata oluştu", { variant: "error" });
     }
   };
 
   const handleDelete = async (rapor) => {
+    if (!canDelete) {
+      enqueueSnackbar('Rapor silme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    if (!canManageReport(rapor)) {
+      enqueueSnackbar('Sadece kendi raporlarınızı silebilirsiniz.', { variant: 'error' });
+      return;
+    }
+
     if (!window.confirm("Bu raporu silmek istediğinizden emin misiniz?")) {
       return;
     }
@@ -443,10 +497,10 @@ const GunlukRapor = () => {
       // UI'dan kaldır
       setRaporList(prevList => prevList.filter(r => r.id !== rapor.id));
       
-      alert("Rapor başarıyla silindi!");
+      enqueueSnackbar("Rapor başarıyla silindi!", { variant: 'success' });
     } catch (error) {
       console.error("Rapor silme hatası:", error);
-      alert("Rapor silinirken bir hata oluştu: " + error.message);
+      enqueueSnackbar("Rapor silinirken hata oluştu", { variant: "error" });
     }
   };
 
@@ -500,7 +554,7 @@ const GunlukRapor = () => {
 
     } catch (error) {
       console.error("Excel export hatası:", error);
-      alert("Excel dosyası oluşturulurken bir hata oluştu!");
+      enqueueSnackbar("Excel dosyası oluşturulurken hata oluştu", { variant: "error" });
     }
   };
 
@@ -767,13 +821,15 @@ const GunlukRapor = () => {
 
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant="contained"
-                onClick={editMode ? handleUpdate : handleSave}
-                startIcon={<AddIcon />}
-              >
-                {editMode ? "Güncelle" : "Kaydet"}
-              </Button>
+              {canCreate && (
+                <Button
+                  variant="contained"
+                  onClick={editMode ? handleUpdate : handleSave}
+                  startIcon={<AddIcon />}
+                >
+                  {editMode ? "Güncelle" : "Kaydet"}
+                </Button>
+              )}
               
               {editMode && (
                 <Button
@@ -833,19 +889,23 @@ const GunlukRapor = () => {
                 )}
               </CardContent>
               <CardActions sx={{ justifyContent: 'flex-end' }}>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleEdit(rapor)}
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleDelete(rapor)}
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
+                {canEdit && canManageReport(rapor) && (
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleEdit(rapor)}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                )}
+                {canDelete && canManageReport(rapor) && (
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleDelete(rapor)}
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                )}
               </CardActions>
             </Card>
           </Grid>
@@ -862,7 +922,7 @@ const GunlukRapor = () => {
         fullWidth
       >
         <DialogTitle>
-          {editingRapor ? 'Raporu Düzenle' : 'Yeni Rapor'}
+          {editMode ? 'Raporu Düzenle' : 'Yeni Rapor'}
         </DialogTitle>
         <DialogContent>
           <RaporForm

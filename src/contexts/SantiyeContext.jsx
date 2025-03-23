@@ -71,7 +71,7 @@ export const SantiyeProvider = ({ children }) => {
           if (seciliBlok) {
             const guncelBlok = guncelSantiye.bloklar?.find(b => b.id === seciliBlok.id);
             if (guncelBlok) {
-              setSeciliBlok(guncelBlok);
+              setSeciliBlok({...guncelBlok}); // Zorla yeni referans oluştur
             }
           }
         }

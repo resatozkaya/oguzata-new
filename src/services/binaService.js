@@ -215,6 +215,11 @@ export const binaService = {
       const yeniKat = {
         no: yeniKatNo,
         tip: katTipi,
+        ad: katTipi === 'BODRUM' ? `${yeniKatNo}. Bodrum Kat` :
+            katTipi === 'ZEMIN' ? 'Zemin Kat' :
+            katTipi === 'CATI' ? 'Çatı Katı' :
+            katTipi === 'ARA' ? 'Ara Kat' :
+            `${yeniKatNo}. Normal Kat`,
         daireler: []
       };
 
@@ -768,17 +773,23 @@ export const binaService = {
   // Blok Yönetimi
   async createBlok(santiyeId, blokData) {
     try {
-      const bloklarRef = collection(db, 'santiyeler', santiyeId, 'bloklar');
-      const docRef = await addDoc(bloklarRef, {
+      const bloklarRef = collection(db, `santiyeler/${santiyeId}/bloklar`);
+      
+      // Blok adını ID olarak kullan
+      const blokDoc = doc(bloklarRef, blokData.ad);
+      
+      await setDoc(blokDoc, {
         ...blokData,
-        createdAt: new Date()
+        olusturmaTarihi: serverTimestamp(),
+        guncellemeTarihi: serverTimestamp()
       });
+
       return {
-        id: docRef.id,
+        id: blokData.ad,
         ...blokData
       };
     } catch (error) {
-      console.error('Blok eklenirken hata:', error);
+      console.error('Blok oluşturulurken hata:', error);
       throw error;
     }
   },
@@ -878,5 +889,39 @@ export const binaService = {
       console.error('Daire güncellenirken hata:', error);
       throw error;
     }
-  }
+  },
+
+  // Kat güncelle
+  async katGuncelle(santiyeId, blokId, katNo, yeniKatBilgisi) {
+    try {
+      const blokRef = doc(db, `santiyeler/${santiyeId}/bloklar/${blokId}`);
+      const blokDoc = await getDoc(blokRef);
+      
+      if (!blokDoc.exists()) return null;
+      
+      const blokData = blokDoc.data();
+      const katlar = [...blokData.katlar];
+      const katIndex = katlar.findIndex(k => k.no === katNo);
+      
+      if (katIndex === -1) return null;
+
+      // Kat bilgilerini güncelle
+      katlar[katIndex] = {
+        ...katlar[katIndex],
+        ...yeniKatBilgisi,
+        no: katNo // no değiştirilemesin
+      };
+
+      // Güncelle
+      await updateDoc(blokRef, { 
+        katlar,
+        guncellemeTarihi: serverTimestamp()
+      });
+      
+      return await this.getBlokBilgileri(santiyeId, blokId);
+    } catch (error) {
+      console.error('Kat güncellenirken hata:', error);
+      throw error;
+    }
+  },
 };

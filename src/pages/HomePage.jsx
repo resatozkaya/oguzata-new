@@ -22,7 +22,9 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { useNavigate, Link } from 'react-router-dom';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -52,6 +54,8 @@ import {
   collection, getDocs, query, orderBy, doc, getDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { usePermission } from '../contexts/PermissionContext';
+import { PAGE_PERMISSIONS } from '../constants/permissions';
 
 const ImageModal = ({ open, handleClose, imageUrl }) => {
   return (
@@ -532,6 +536,8 @@ const HomePage = () => {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hakedisler, setHakedisler] = useState([]);
+  const { hasPermission } = usePermission();
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
 
   // Mouse sürükleme işlemleri
   const handleMouseDown = (e) => {
@@ -610,6 +616,21 @@ const HomePage = () => {
         behavior: 'smooth'
       });
     }
+  };
+
+  const handleNavigate = (path, permission) => {
+    if (!hasPermission(permission)) {
+      setSnackbar({
+        open: true,
+        message: 'Bu sayfaya erişim yetkiniz bulunmamaktadır.'
+      });
+      return;
+    }
+    navigate(path);
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ open: false, message: '' });
   };
 
   useEffect(() => {
@@ -796,19 +817,19 @@ const HomePage = () => {
             title: "Şantiye",
             value: santiyelerData.length,
             icon: BusinessIcon,
-            onClick: () => navigate('/santiye')
+            onClick: () => handleNavigate('/santiye', PAGE_PERMISSIONS.SANTIYE.VIEW)
           },
           {
             title: "Personel",
             value: totalPersonel,
             icon: GroupIcon,
-            onClick: () => navigate('/personel')
+            onClick: () => handleNavigate('/personel', PAGE_PERMISSIONS.PERSONEL.VIEW)
           },
           {
             title: "Depo",
             value: depoData.length,
             icon: WarehouseIcon,
-            onClick: () => navigate('/depo')
+            onClick: () => handleNavigate('/depo', PAGE_PERMISSIONS.DEPO.VIEW)
           }
         ];
 
@@ -832,7 +853,7 @@ const HomePage = () => {
     };
 
     fetchData();
-  }, [navigate]);
+  }, [navigate, hasPermission]);
 
   if (loading) {
     return (
@@ -931,6 +952,22 @@ const HomePage = () => {
           <ChevronRightIcon />
         </IconButton>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity="warning" 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

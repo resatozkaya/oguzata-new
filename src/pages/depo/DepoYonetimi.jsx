@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, Grid, Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogContent, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Typography, Button, Grid, Paper, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Dialog, DialogContent, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, TextField, DialogTitle, DialogActions, Tooltip } from '@mui/material';
 import { Add as AddIcon, ViewModule as GridIcon, ViewList as ListIcon, Edit as EditIcon, Delete as DeleteIcon, Remove as RemoveIcon, MoreVert as MoreVertIcon } from '@mui/icons-material';
 import DepoSantiyeSecici from '../../components/depo/DepoSantiyeSecici';
 import DepoSecici from '../../components/depo/DepoSecici';
@@ -13,6 +13,11 @@ import { useDepo } from '../../contexts/DepoContext';
 import { depoService } from '../../services/depoService';
 import { formatDistance } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { useNavigate } from 'react-router-dom';
+import { usePermission } from '../../contexts/PermissionContext';
+import { enqueueSnackbar } from 'notistack';
 
 const DepoYonetimi = () => {
   const { 
@@ -36,6 +41,24 @@ const DepoYonetimi = () => {
   const [sonIslemler, setSonIslemler] = useState([]);
   const [seciliIslem, setSeciliIslem] = useState(null);
   const [islemDuzenleDialogAcik, setIslemDuzenleDialogAcik] = useState(false);
+  const navigate = useNavigate();
+  const { hasPermission } = usePermission();
+  
+  // Yetki kontrolleri
+  const canView = hasPermission('depo_view');
+  const canEdit = hasPermission('depo_update');
+  const canCreate = hasPermission('depo_create');
+  const canDelete = hasPermission('depo_delete');
+  const isYonetim = hasPermission('YONETIM');
+
+  // Sayfa yetkisi kontrolü
+  useEffect(() => {
+    if (!canView) {
+      enqueueSnackbar('Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      navigate('/');
+      return;
+    }
+  }, [canView, navigate]);
 
   // Base64 resmi görüntülemek için yardımcı fonksiyon
   const getImageUrl = (base64Data) => {
@@ -230,50 +253,56 @@ const DepoYonetimi = () => {
                   </Typography>
                 )}
               </Box>
-              <Box 
-                className="islem-butonlar"
-                sx={{ 
-                  opacity: 0,
-                  transition: 'opacity 0.2s',
-                  display: 'flex',
-                  gap: 1
-                }}
-              >
-                <IconButton
-                  size="small"
+              {(canEdit || canDelete) && (
+                <Box 
+                  className="islem-butonlar"
                   sx={{ 
-                    color: 'white', 
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    '&:hover': { 
-                      bgcolor: 'rgba(255,255,255,0.2)'
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSeciliIslem(islem);
-                    setIslemDuzenleDialogAcik(true);
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    display: 'flex',
+                    gap: 1
                   }}
                 >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  sx={{ 
-                    color: 'white', 
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    '&:hover': { 
-                      bgcolor: 'rgba(255,0,0,0.2)'
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSeciliIslem(islem);
-                    handleIslemSil();
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
+                  {canEdit && (
+                    <IconButton
+                      size="small"
+                      sx={{ 
+                        color: 'white', 
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        '&:hover': { 
+                          bgcolor: 'rgba(255,255,255,0.2)'
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSeciliIslem(islem);
+                        setIslemDuzenleDialogAcik(true);
+                      }}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {canDelete && (
+                    <IconButton
+                      size="small"
+                      sx={{ 
+                        color: 'white', 
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        '&:hover': { 
+                          bgcolor: 'rgba(255,0,0,0.2)'
+                        }
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSeciliIslem(islem);
+                        handleIslemSil();
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              )}
             </Box>
           </Paper>
         ))
@@ -490,6 +519,149 @@ const DepoYonetimi = () => {
     }
   };
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedDepo, setSelectedDepo] = useState(null);
+  const [formData, setFormData] = useState({
+    ad: '',
+    adres: '',
+    sorumlu: '',
+    telefon: '',
+    aciklama: ''
+  });
+
+  // Depo yetki kontrolü için yardımcı fonksiyon
+  const canManageDepo = (depo) => {
+    if (isYonetim) return true; // YÖNETİM rolü tüm depoları yönetebilir
+    return depo.createdBy === currentUser.email; // Diğer kullanıcılar sadece kendi depolarını
+  };
+
+  const handleEdit = (depo) => {
+    if (!canEdit) {
+      enqueueSnackbar('Depo düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    if (!canManageDepo(depo)) {
+      enqueueSnackbar('Sadece kendi oluşturduğunuz depoları düzenleyebilirsiniz.', { variant: 'error' });
+      return;
+    }
+
+    setEditMode(true);
+    setSelectedDepo(depo);
+    setFormData({
+      ad: depo.ad,
+      adres: depo.adres,
+      sorumlu: depo.sorumlu,
+      telefon: depo.telefon,
+      aciklama: depo.aciklama
+    });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (depo) => {
+    if (!canDelete) {
+      enqueueSnackbar('Depo silme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    if (!canManageDepo(depo)) {
+      enqueueSnackbar('Sadece kendi oluşturduğunuz depoları silebilirsiniz.', { variant: 'error' });
+      return;
+    }
+
+    if (window.confirm('Bu depoyu silmek istediğinizden emin misiniz?')) {
+      try {
+        await deleteDoc(doc(db, 'depolar', depo.id));
+        setDepolar(depolar.filter(d => d.id !== depo.id));
+        enqueueSnackbar('Depo başarıyla silindi.', { variant: 'success' });
+      } catch (error) {
+        console.error('Depo silme hatası:', error);
+        enqueueSnackbar('Depo silinirken bir hata oluştu.', { variant: 'error' });
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (editMode && !canEdit) {
+      enqueueSnackbar('Depo düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    if (!editMode && !canCreate) {
+      enqueueSnackbar('Depo oluşturma yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+
+    try {
+      if (editMode) {
+        if (!canManageDepo(selectedDepo)) {
+          enqueueSnackbar('Sadece kendi oluşturduğunuz depoları düzenleyebilirsiniz.', { variant: 'error' });
+          return;
+        }
+
+        const depoRef = doc(db, 'depolar', selectedDepo.id);
+        await updateDoc(depoRef, {
+          ...formData,
+          updatedAt: new Date(),
+          updatedBy: currentUser.email
+        });
+
+        setDepolar(depolar.map(depo => 
+          depo.id === selectedDepo.id ? { ...depo, ...formData } : depo
+        ));
+        enqueueSnackbar('Depo başarıyla güncellendi.', { variant: 'success' });
+      } else {
+        const docRef = await addDoc(collection(db, 'depolar'), {
+          ...formData,
+          createdAt: new Date(),
+          createdBy: currentUser.email
+        });
+
+        setDepolar([...depolar, { id: docRef.id, ...formData }]);
+        enqueueSnackbar('Depo başarıyla oluşturuldu.', { variant: 'success' });
+      }
+
+      handleClose();
+    } catch (error) {
+      console.error('Depo kaydetme hatası:', error);
+      enqueueSnackbar('Depo kaydedilirken bir hata oluştu.', { variant: 'error' });
+    }
+  };
+
+  const handleClose = () => {
+    setDialogOpen(false);
+    setEditMode(false);
+    setSelectedDepo(null);
+    setFormData({
+      ad: '',
+      adres: '',
+      sorumlu: '',
+      telefon: '',
+      aciklama: ''
+    });
+  };
+
+  useEffect(() => {
+    const fetchDepolar = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'depolar'));
+        const depoData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setDepolar(depoData);
+      } catch (error) {
+        console.error('Depo verilerini çekme hatası:', error);
+        enqueueSnackbar('Depo verileri yüklenirken bir hata oluştu.', { variant: 'error' });
+      }
+    };
+
+    fetchDepolar();
+  }, []);
+
   return (
     <Box sx={{ p: 3 }}>
       <Grid container spacing={3}>
@@ -503,7 +675,7 @@ const DepoYonetimi = () => {
               <DepoSecici onDepoSil={handleDepoSil} />
             </Box>
             {/* Depo Ekleme Butonu - Şantiye seçili olduğunda göster */}
-            {seciliSantiye && (
+            {seciliSantiye && canCreate && (
               <Button
                 variant="contained"
                 color="primary"
@@ -514,7 +686,7 @@ const DepoYonetimi = () => {
               </Button>
             )}
             {/* Malzeme Ekleme Butonu - Depo seçili olduğunda göster */}
-            {seciliDepo && (
+            {seciliDepo && canCreate && (
               <Button
                 variant="contained"
                 color="primary"
@@ -603,12 +775,14 @@ const DepoYonetimi = () => {
                           <TableCell>{malzeme.islemTuru}</TableCell>
                           <TableCell>{formatTarih(malzeme.tarih)}</TableCell>
                           <TableCell align="right">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleMenuClick(e, malzeme)}
-                            >
-                              <MoreVertIcon />
-                            </IconButton>
+                            {(canEdit || canDelete) && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleMenuClick(e, malzeme)}
+                              >
+                                <MoreVertIcon />
+                              </IconButton>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -674,17 +848,101 @@ const DepoYonetimi = () => {
         </Grid>
       </Grid>
 
-      <DepoEkleDialog 
-        open={depoEkleDialogAcik}
-        onClose={() => setDepoEkleDialogAcik(false)}
-        santiyeId={seciliSantiye?.id}
-      />
+      {/* Malzeme Menüsü */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        {canEdit && (
+          <MenuItem onClick={() => {
+            handleMenuClose();
+            setIslemDialogAcik(true);
+          }}>
+            <ListItemIcon>
+              <AddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Giriş/Çıkış İşlemi</ListItemText>
+          </MenuItem>
+        )}
+        {canEdit && (
+          <MenuItem onClick={() => {
+            handleMenuClose();
+            setDuzenleDialogAcik(true);
+          }}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Düzenle</ListItemText>
+          </MenuItem>
+        )}
+        {canDelete && (
+          <MenuItem onClick={handleMalzemeSil}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText sx={{ color: 'error.main' }}>Sil</ListItemText>
+          </MenuItem>
+        )}
+      </Menu>
 
-      <MalzemeEkleDialog 
-        open={malzemeEkleDialogAcik}
-        onClose={() => setMalzemeEkleDialogAcik(false)}
-        depoId={seciliDepo?.id}
-      />
+      {/* Dialog'lar için yetki kontrolleri */}
+      {canCreate && (
+        <DepoEkleDialog 
+          open={depoEkleDialogAcik}
+          onClose={() => setDepoEkleDialogAcik(false)}
+          santiyeId={seciliSantiye?.id}
+        />
+      )}
+
+      {canCreate && (
+        <MalzemeEkleDialog 
+          open={malzemeEkleDialogAcik}
+          onClose={() => setMalzemeEkleDialogAcik(false)}
+          depoId={seciliDepo?.id}
+        />
+      )}
+
+      {canEdit && (
+        <MalzemeDuzenleDialog
+          open={duzenleDialogAcik}
+          onClose={() => setDuzenleDialogAcik(false)}
+          malzeme={seciliMalzeme}
+        />
+      )}
+
+      {canEdit && (
+        <MalzemeIslemDialog
+          open={islemDialogAcik}
+          onClose={() => {
+            setIslemDialogAcik(false);
+            setSeciliMalzeme(null);
+          }}
+          malzeme={seciliMalzeme}
+        />
+      )}
+
+      {canEdit && (
+        <IslemDuzenleDialog
+          open={islemDuzenleDialogAcik}
+          onClose={() => {
+            setIslemDuzenleDialogAcik(false);
+            setSeciliIslem(null);
+          }}
+          islem={seciliIslem}
+          onSuccess={() => {
+            tumIslemleriYukle();
+          }}
+        />
+      )}
 
       {/* Büyük Resim Dialog'u */}
       <Dialog
@@ -708,76 +966,56 @@ const DepoYonetimi = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Malzeme Düzenleme Dialog'u */}
-      <MalzemeDuzenleDialog
-        open={duzenleDialogAcik}
-        onClose={() => setDuzenleDialogAcik(false)}
-        malzeme={seciliMalzeme}
-      />
-
-      {/* Malzeme İşlem Dialog'u */}
-      <MalzemeIslemDialog
-        open={islemDialogAcik}
-        onClose={() => {
-          setIslemDialogAcik(false);
-          setSeciliMalzeme(null);
-        }}
-        malzeme={seciliMalzeme}
-      />
-
-      {/* İşlem Düzenleme Dialog'u */}
-      <IslemDuzenleDialog
-        open={islemDuzenleDialogAcik}
-        onClose={() => {
-          setIslemDuzenleDialogAcik(false);
-          setSeciliIslem(null);
-        }}
-        islem={seciliIslem}
-        onSuccess={() => {
-          // İşlem başarıyla güncellendiğinde
-          tumIslemleriYukle(); // İşlemleri yeniden yükle
-        }}
-      />
-
-      {/* Malzeme Menüsü */}
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-      >
-        <MenuItem onClick={() => {
-          handleMenuClose();
-          setIslemDialogAcik(true);
-        }}>
-          <ListItemIcon>
-            <AddIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Giriş/Çıkış İşlemi</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleMenuClose();
-          setDuzenleDialogAcik(true);
-        }}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Düzenle</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleMalzemeSil}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText sx={{ color: 'error.main' }}>Sil</ListItemText>
-        </MenuItem>
-      </Menu>
+      <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
+        <form onSubmit={handleSubmit}>
+          <DialogTitle>{editMode ? 'Depo Düzenle' : 'Yeni Depo Ekle'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+              <TextField
+                label="Depo Adı"
+                value={formData.ad}
+                onChange={(e) => setFormData({ ...formData, ad: e.target.value })}
+                required
+                fullWidth
+              />
+              <TextField
+                label="Adres"
+                value={formData.adres}
+                onChange={(e) => setFormData({ ...formData, adres: e.target.value })}
+                multiline
+                rows={3}
+                fullWidth
+              />
+              <TextField
+                label="Sorumlu"
+                value={formData.sorumlu}
+                onChange={(e) => setFormData({ ...formData, sorumlu: e.target.value })}
+                fullWidth
+              />
+              <TextField
+                label="Telefon"
+                value={formData.telefon}
+                onChange={(e) => setFormData({ ...formData, telefon: e.target.value })}
+                fullWidth
+              />
+              <TextField
+                label="Açıklama"
+                value={formData.aciklama}
+                onChange={(e) => setFormData({ ...formData, aciklama: e.target.value })}
+                multiline
+                rows={2}
+                fullWidth
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose}>İptal</Button>
+            <Button type="submit" variant="contained">
+              {editMode ? 'Güncelle' : 'Kaydet'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 };

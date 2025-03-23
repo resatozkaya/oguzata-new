@@ -18,23 +18,29 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton as MuiIconButton,
   Button,
-  Tooltip
+  Tooltip,
+  Avatar
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
-import EngineeringIcon from '@mui/icons-material/Engineering';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Close as CloseIcon,
+  Add as AddIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { personnelService } from '../services/personnelService';
-import { usePermission } from '../hooks/usePermission';
+import { usePermission } from '../contexts/PermissionContext';
 import { PAGE_PERMISSIONS } from '../constants/permissions';
 import PersonelPermissionModal from '../components/personel/PersonelPermissionModal';
+import { useSnackbar } from 'notistack';
+import PageTitle from '../components/PageTitle';
+import { useAuth } from '../contexts/AuthContext';
 
 const PersonelListesi = () => {
   const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = usePermission();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTumu, setFilterTumu] = useState('Tümü');
   const [filterCalismaSekli, setFilterCalismaSekli] = useState('Tümü');
@@ -65,6 +71,7 @@ const PersonelListesi = () => {
     } catch (err) {
       console.error('Error loading personnel:', err);
       setError('Personel listesi yüklenirken bir hata oluştu');
+      enqueueSnackbar('Personel listesi yüklenirken bir hata oluştu', { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -118,26 +125,42 @@ const PersonelListesi = () => {
     });
 
   const handleEdit = (id) => {
+    if (!hasPermission('personel_update')) {
+      enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
     navigate(`/personel/${id}`);
   };
 
   const handleDelete = async (id) => {
-    try {
-      await personnelService.deletePersonnel(id);
-      await loadPersonnel();
-    } catch (err) {
-      console.error('Error deleting personnel:', err);
-      setError('Personel silinirken bir hata oluştu');
+    if (!hasPermission('personel_delete')) {
+      enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+    if (window.confirm('Bu personeli silmek istediğinizden emin misiniz?')) {
+      try {
+        await personnelService.deletePersonnel(id);
+        await loadPersonnel();
+        enqueueSnackbar('Personel başarıyla silindi', { variant: 'success' });
+      } catch (err) {
+        console.error('Error deleting personnel:', err);
+        enqueueSnackbar('Personel silinirken bir hata oluştu', { variant: 'error' });
+      }
     }
   };
 
   const handleStatusChange = async (id, currentStatus) => {
+    if (!hasPermission('personel_update')) {
+      enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
     try {
       await personnelService.updatePersonnelStatus(id, !currentStatus);
-      await loadPersonnel(); // Listeyi yenile
+      await loadPersonnel();
+      enqueueSnackbar('Personel durumu güncellendi', { variant: 'success' });
     } catch (err) {
       console.error('Error updating personnel status:', err);
-      setError('Personel durumu güncellenirken bir hata oluştu');
+      enqueueSnackbar('Personel durumu güncellenirken bir hata oluştu', { variant: 'error' });
     }
   };
 
@@ -149,8 +172,30 @@ const PersonelListesi = () => {
     setPermissionModalOpen(true);
   };
 
+  const handleAddNew = () => {
+    if (!hasPermission('personel_create')) {
+      enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+    navigate('/personel/yeni');
+  };
+
   return (
     <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <PageTitle title="Personel Listesi" />
+        {hasPermission('personel_create') && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddNew}
+          >
+            Yeni Personel
+          </Button>
+        )}
+      </Box>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -191,15 +236,6 @@ const PersonelListesi = () => {
             </MenuItem>
           ))}
         </TextField>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/personel/yeni')}
-          disabled={!canCreate}
-        >
-          Yeni Personel
-        </Button>
       </Box>
 
       {/* Tablo */}
@@ -213,7 +249,7 @@ const PersonelListesi = () => {
               <TableCell>Telefon</TableCell>
               <TableCell>Çalışma Şekli</TableCell>
               <TableCell>Durum</TableCell>
-              <TableCell>İşlemler</TableCell>
+              <TableCell align="center">İşlemler</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -234,35 +270,26 @@ const PersonelListesi = () => {
                 <TableRow key={person.id}>
                   <TableCell>
                     {person.foto ? (
-                      <Box
-                        component="img"
+                      <Avatar
                         src={person.foto}
                         alt={`${person.ad} ${person.soyad}`}
                         sx={{ 
-                          width: 32, 
-                          height: 32, 
-                          objectFit: 'cover',
-                          borderRadius: '50%',
+                          width: 40, 
+                          height: 40,
                           cursor: 'pointer'
                         }}
                         onClick={() => handleImageClick(person.foto, `${person.ad} ${person.soyad}`)}
                       />
                     ) : (
-                      <Box
+                      <Avatar
                         sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.875rem'
+                          width: 40,
+                          height: 40,
+                          bgcolor: 'primary.main'
                         }}
                       >
                         {person.ad?.[0]}{person.soyad?.[0]}
-                      </Box>
+                      </Avatar>
                     )}
                   </TableCell>
                   <TableCell>{person.ad} {person.soyad}</TableCell>
@@ -274,46 +301,35 @@ const PersonelListesi = () => {
                       label={person.aktif ? 'AKTİF' : 'PASİF'}
                       color={person.aktif ? 'success' : 'default'}
                       size="small"
-                      onClick={() => canUpdate && handleStatusChange(person.id, person.aktif)}
-                      sx={{ cursor: canUpdate ? 'pointer' : 'not-allowed' }}
+                      onClick={() => hasPermission('personel_update') && handleStatusChange(person.id, person.aktif)}
+                      sx={{ cursor: hasPermission('personel_update') ? 'pointer' : 'not-allowed' }}
                     />
                   </TableCell>
                   <TableCell>
-                    <Tooltip title={canUpdate ? "Düzenle" : "Düzenleme yetkiniz yok"}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(person.id)}
-                          sx={{ color: 'primary.main' }}
-                          disabled={!canUpdate}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Tooltip title={canDelete ? "Sil" : "Silme yetkiniz yok"}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(person.id)}
-                          sx={{ color: 'error.main' }}
-                          disabled={!canDelete}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    {canManagePermissions && (
-                      <Tooltip title="Yetkilendirme">
-                        <IconButton
-                          size="small"
-                          onClick={() => handlePermissions(person.id)}
-                          sx={{ color: 'info.main' }}
-                        >
-                          <EngineeringIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+                      {hasPermission('personel_update') && (
+                        <Tooltip title="Düzenle">
+                          <IconButton
+                            onClick={() => handleEdit(person.id)}
+                            color="primary"
+                            size="small"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {hasPermission('personel_delete') && (
+                        <Tooltip title="Sil">
+                          <IconButton
+                            onClick={() => handleDelete(person.id)}
+                            color="error"
+                            size="small"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))

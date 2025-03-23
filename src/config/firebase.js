@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
@@ -16,29 +20,28 @@ const firebaseConfig = {
 // Firebase'i başlat
 const app = initializeApp(firebaseConfig);
 
-// Firestore veritabanını başlat
-const db = getFirestore(app);
-
-// Çevrimdışı veri desteğini etkinleştir
-enableMultiTabIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Çoklu sekme desteği için IndexedDB kullanılamıyor');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Tarayıcınız IndexedDB desteklemiyor');
-    }
-  });
-
 // Firestore ayarlarını yapılandır
-const settings = {
-  cacheSizeBytes: 40 * 1024 * 1024, // 40 MB
+const firestoreSettings = {
   ignoreUndefinedProperties: true,
-  experimentalForceLongPolling: true, // WebSocket sorunlarını çözmek için
   experimentalAutoDetectLongPolling: true
 };
 
+// Firestore'u persistence ile başlat
+const db = initializeFirestore(app, {
+  ...firestoreSettings,
+  cache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
 // Authentication'ı başlat
 const auth = getAuth(app);
+
+// Authentication persistence ayarını LOCAL olarak ayarla
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error("Authentication persistence hatası:", error);
+  });
 
 // Storage'ı başlat
 const storage = getStorage(app);

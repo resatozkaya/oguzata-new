@@ -9,23 +9,23 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
   const [sidebarColor, setSidebarColor] = useState('#6a1b9a');
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       const themeData = JSON.parse(savedTheme);
-      setIsDarkMode(themeData.isDarkMode);
+      setDarkMode(themeData.darkMode);
       setSidebarColor(themeData.sidebarColor);
     }
   }, []);
 
   const toggleDarkMode = () => {
-    setIsDarkMode(prev => {
+    setDarkMode(prev => {
       const newValue = !prev;
       localStorage.setItem('theme', JSON.stringify({
-        isDarkMode: newValue,
+        darkMode: newValue,
         sidebarColor
       }));
       return newValue;
@@ -35,14 +35,14 @@ export const ThemeProvider = ({ children }) => {
   const changeSidebarColor = (color) => {
     setSidebarColor(color);
     localStorage.setItem('theme', JSON.stringify({
-      isDarkMode,
+      darkMode,
       sidebarColor: color
     }));
   };
 
   const theme = createTheme({
     palette: {
-      mode: isDarkMode ? 'dark' : 'light',
+      mode: darkMode ? 'dark' : 'light',
       primary: {
         main: sidebarColor,
       },
@@ -50,8 +50,8 @@ export const ThemeProvider = ({ children }) => {
         main: '#1a237e',
       },
       background: {
-        default: isDarkMode ? '#121212' : '#f5f5f5',
-        paper: isDarkMode ? '#1e1e1e' : '#ffffff',
+        default: darkMode ? '#121212' : '#f5f5f5',
+        paper: darkMode ? '#1e1e1e' : '#ffffff',
       },
     },
     components: {
@@ -66,8 +66,8 @@ export const ThemeProvider = ({ children }) => {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
-            color: isDarkMode ? '#ffffff' : '#000000',
+            backgroundColor: darkMode ? '#1e1e1e' : '#ffffff',
+            color: darkMode ? '#ffffff' : '#000000',
           },
         },
       },
@@ -75,7 +75,7 @@ export const ThemeProvider = ({ children }) => {
   });
 
   const value = {
-    isDarkMode,
+    darkMode,
     toggleDarkMode,
     sidebarColor,
     changeSidebarColor,

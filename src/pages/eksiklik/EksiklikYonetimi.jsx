@@ -52,7 +52,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
   const [formModalAcik, setFormModalAcik] = useState(false);
   const [seciliEksiklik, setSeciliEksiklik] = useState(null);
   const [yetkiModalAcik, setYetkiModalAcik] = useState(false);
-  const { seciliSantiye, seciliBlok } = useSantiye(); 
+  const { seciliSantiye, seciliBlok, yenileVerileri } = useSantiye(); 
   const [seciliDaire, setSeciliDaire] = useState(null);
   const [taseronlar, setTaseronlar] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(false);
@@ -519,39 +519,6 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
               <Typography variant="h6">Bina Görünümü</Typography>
               {seciliSantiye?.id && seciliBlok?.id && (
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Bina Yapısı Düzenleme Butonu */}
-                  {canManageBinaYapisi && (
-                    <Button
-                      variant="contained"
-                      onClick={() => setBinaYapisiOpen(true)}
-                      startIcon={<EditIcon />}
-                    >
-                      BİNA YAPISI
-                    </Button>
-                  )}
-
-                  {/* Blok Yönetimi Butonu */}
-                  {canManageBloklar && (
-                    <Button
-                      variant="contained"
-                      onClick={() => setBlokYonetimiOpen(true)}
-                      startIcon={<EditIcon />}
-                    >
-                      BLOK YÖNETİMİ
-                    </Button>
-                  )}
-
-                  {/* Yetki Yönetimi Butonu */}
-                  {canManagePermissions && (
-                    <Button
-                      variant="contained"
-                      onClick={() => setYetkiModalAcik(true)}
-                      startIcon={<SecurityIcon />}
-                    >
-                      YETKİLER
-                    </Button>
-                  )}
-
                   {/* Tam Ekran Butonu */}
                   <IconButton
                     onClick={() => setBinaGorunumuTamEkran(true)}
@@ -608,55 +575,62 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
             }}>
               {seciliSantiye?.id && seciliBlok?.id ? (
                 <>
-                  {/* Filtreler */}
+                  {/* Filtreler ve Aksiyon Butonları */}
                   <Box sx={{ 
                     display: 'flex', 
                     flexDirection: { xs: 'column', sm: 'row' },
                     gap: 1,
-                    flex: 1
+                    alignItems: 'center',
+                    width: '100%',
+                    justifyContent: 'space-between'
                   }}>
-                    <EksiklikFiltrele
-                      filtreler={filtreler}
-                      setFiltreler={setFiltreler}
-                      taseronlar={taseronlar}
-                      sx={{
-                        '& .MuiFormControl-root': {
-                          minWidth: { xs: '100%', sm: '150px' }
-                        }
-                      }}
-                    />
-                  </Box>
-
-                  {/* Aksiyon Butonları */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    gap: 1,
-                    flexWrap: 'wrap',
-                    justifyContent: { xs: 'flex-start', sm: 'flex-end' }
-                  }}>
-                    {canCreateEksiklik && (
-                      <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => {
-                          setSeciliEksiklik(null);
-                          setFormModalAcik(true);
+                    {/* Filtreler */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 1,
+                      flex: 1
+                    }}>
+                      <EksiklikFiltrele
+                        filtreler={filtreler}
+                        setFiltreler={setFiltreler}
+                        taseronlar={taseronlar}
+                        sx={{
+                          '& .MuiFormControl-root': {
+                            minWidth: { xs: '100%', sm: '150px' }
+                          }
                         }}
-                        sx={{ flex: { xs: 1, sm: 'initial' } }}
-                      >
-                        Yeni Eksiklik
-                      </Button>
-                    )}
-                    {canManageEksiklik && (
-                      <Button
-                        variant="outlined"
-                        startIcon={<ExportIcon />}
-                        onClick={handleExcelExport}
-                        sx={{ flex: { xs: 1, sm: 'initial' } }}
-                      >
-                        Excel
-                      </Button>
-                    )}
+                      />
+                    </Box>
+
+                    {/* Aksiyon Butonları */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 1,
+                      flexShrink: 0
+                    }}>
+                      {canCreateEksiklik && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          startIcon={<AddIcon />}
+                          onClick={() => {
+                            setSeciliEksiklik(null);
+                            setFormModalAcik(true);
+                          }}
+                        >
+                          YENİ EKSİKLİK
+                        </Button>
+                      )}
+                      {canManageEksiklik && (
+                        <Button
+                          variant="outlined"
+                          startIcon={<ExportIcon />}
+                          onClick={handleExcelExport}
+                        >
+                          EXCEL
+                        </Button>
+                      )}
+                    </Box>
                   </Box>
                 </>
               ) : (
@@ -691,7 +665,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
               <EksiklikListesi
                 eksiklikler={filtrelenmisEksiklikler}
                 onDuzenle={(eksiklik) => {
-                  setSeciliEksiklik(eksiklik);
+                  setSeciliEksiklik(eksik);
                   setFormModalAcik(true);
                 }}
                 onSil={handleEksiklikSil}
@@ -734,7 +708,7 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
 
       {/* Bina Görünümü Tam Ekran Dialog */}
       <Dialog
-        fullScreen
+        full Screen
         open={binaGorunumuTamEkran}
         onClose={() => setBinaGorunumuTamEkran(false)}
       >
@@ -757,37 +731,93 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Eksiklikler Tam Ekran Dialog */}
+      {/* Tam Ekran Dialog */}
       <Dialog
         fullScreen
         open={eksikliklerTamEkran}
         onClose={() => setEksikliklerTamEkran(false)}
       >
-        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Eksiklikler</Typography>
-          <IconButton
-            onClick={() => setEksikliklerTamEkran(false)}
-            sx={{ color: 'grey.500' }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers sx={{ p: 3 }}>
-          <EksiklikFiltrele
-            filtreler={filtreler}
-            setFiltreler={setFiltreler}
-            taseronlar={taseronlar}
-          />
-          <EksiklikListesi
-            eksiklikler={filtrelenmisEksiklikler}
-            onDuzenle={(eksiklik) => {
-              setSeciliEksiklik(eksiklik);
-              setFormModalAcik(true);
-            }}
-            onSil={handleEksiklikSil}
-            taseronlar={taseronlar}
-          />
-        </DialogContent>
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+          {/* Dialog Header */}
+          <Box sx={{ 
+            p: 2, 
+            borderBottom: 1, 
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <Typography variant="h6">Eksiklikler</Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              {/* Filtreler */}
+              <EksiklikFiltrele
+                filtreler={filtreler}
+                setFiltreler={setFiltreler}
+                taseronlar={taseronlar}
+              />
+
+              {/* Aksiyon Butonları */}
+              {canCreateEksiklik && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setSeciliEksiklik(null);
+                    setFormModalAcik(true);
+                  }}
+                >
+                  YENİ EKSİKLİK
+                </Button>
+              )}
+              {canManageEksiklik && (
+                <Button
+                  variant="outlined"
+                  startIcon={<ExportIcon />}
+                  onClick={handleExcelExport}
+                >
+                  EXCEL
+                </Button>
+              )}
+              
+              {/* Kapatma Butonu */}
+              <IconButton 
+                onClick={() => setEksikliklerTamEkran(false)}
+                sx={{ ml: 1 }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </Box>
+
+          {/* Dialog Content */}
+          <Box sx={{ 
+            flex: 1, 
+            overflowY: 'auto',
+            p: 2,
+            bgcolor: 'background.default'
+          }}>
+            <EksiklikListesi
+              eksiklikler={filtrelenmisEksiklikler}
+              onDuzenle={(eksiklik) => {
+                setSeciliEksiklik(eksik);
+                setFormModalAcik(true);
+              }}
+              onSil={handleEksiklikSil}
+              sx={{
+                '& .MuiGrid-item': {
+                  width: {
+                    xs: '100%',
+                    sm: '50%',
+                    md: '33.33%',
+                    lg: '25%'
+                  }
+                }
+              }}
+            />
+          </Box>
+        </Box>
       </Dialog>
 
       {/* Blok Yönetimi Modal */}

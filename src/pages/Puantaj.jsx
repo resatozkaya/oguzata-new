@@ -3,13 +3,14 @@ import { collection, getDoc, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import * as XLSX from 'xlsx';
 import { useNavigate } from "react-router-dom";
-import { Box, CircularProgress, Button, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, Typography, TextField, useTheme, Checkbox, FormControlLabel } from "@mui/material";
+import { Box, CircularProgress, Button, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, Typography, TextField, useTheme } from "@mui/material";
 import { enqueueSnackbar } from 'notistack';
 import { useTheme as useCustomTheme } from "../contexts/ThemeContext";
-import html2pdf from 'html2pdf.js';
 import { usePermission } from "../contexts/PermissionContext";
+import html2pdf from 'html2pdf.js';
 
 const Puantaj = () => {
+  const { hasPermission } = usePermission();
   const pdfRef = useRef();
   const theme = useTheme();
   const { sidebarColor } = useCustomTheme();
@@ -24,8 +25,6 @@ const Puantaj = () => {
 
   // State tanımlamaları
   const [loading, setLoading] = useState(false);
-  const { hasPermission } = usePermission();
-  const canEdit = hasPermission('PUANTAJ_DUZENLE');
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedSantiye, setSelectedSantiye] = useState("");
@@ -39,9 +38,12 @@ const Puantaj = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedPersonelName, setSelectedPersonelName] = useState("");
-  const [yetkiDialogOpen, setYetkiDialogOpen] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+
+  // Yetki kontrolleri
+  const canView = hasPermission('puantaj_view');
+  const canEdit = hasPermission('puantaj_update');
+  const canCreate = hasPermission('puantaj_create');
+  const canDelete = hasPermission('puantaj_delete');
 
   // Puantaj durumları
   const PUANTAJ_DURUMLARI = {
@@ -232,7 +234,7 @@ const Puantaj = () => {
   // Hücre tıklama işleyicisi
   const handleCellClick = (personelName, day) => {
     if (!canEdit) {
-      enqueueSnackbar("Bu işlem için yetkiniz bulunmamaktadır", { variant: "warning" });
+      enqueueSnackbar('Puantaj düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
     setSelectedPersonelName(personelName);
@@ -243,7 +245,7 @@ const Puantaj = () => {
   // Puantaj kaydetme işleyicisi
   const handleSavePuantaj = async (status) => {
     if (!canEdit) {
-      enqueueSnackbar("Bu işlem için yetkiniz bulunmamaktadır", { variant: "warning" });
+      enqueueSnackbar('Puantaj düzenleme yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
 
@@ -338,46 +340,6 @@ const Puantaj = () => {
     }
   };
 
-  // Kullanıcıları getir
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const userList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setUsers(userList);
-      } catch (error) {
-        console.error("Kullanıcılar yüklenirken hata:", error);
-        enqueueSnackbar("Kullanıcılar yüklenirken hata oluştu", { variant: "error" });
-      }
-    };
-
-    if (yetkiDialogOpen) {
-      fetchUsers();
-    }
-  }, [yetkiDialogOpen]);
-
-  // Yetki düzenleme işleyicisi
-  const handleYetkiDuzenle = () => {
-    setYetkiDialogOpen(true);
-  };
-
-  // Yetki güncelleme işleyicisi
-  const handleYetkiGuncelle = async (userId, permissions) => {
-    try {
-      await setDoc(doc(db, "users", userId), {
-        permissions: permissions
-      }, { merge: true });
-      
-      enqueueSnackbar("Yetkiler başarıyla güncellendi", { variant: "success" });
-    } catch (error) {
-      console.error("Yetki güncellenirken hata:", error);
-      enqueueSnackbar("Yetki güncellenirken hata oluştu", { variant: "error" });
-    }
-  };
-
   // Hücre render fonksiyonu
   const renderCell = (personelName, day) => {
     const data = allPuantajData[personelName]?.[day];
@@ -389,7 +351,7 @@ const Puantaj = () => {
       <td
         key={day}
         onClick={() => handleCellClick(personelName, day)}
-        className={`border p-2 text-center cursor-pointer ${
+        className={`border p-2 text-center ${!canEdit ? '' : 'cursor-pointer'} ${
           isDarkMode ? 'border-gray-700' : 'border'
         } ${durum.color} ${durum.textColor}`}
         style={{
@@ -499,6 +461,14 @@ const Puantaj = () => {
     // Stili kaldır
     document.head.removeChild(style);
   };
+
+  // Sayfa yetkisi kontrolü
+  useEffect(() => {
+    if (!canView) {
+      enqueueSnackbar('Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.', { variant: 'error' });
+      navigate('/');
+    }
+  }, [canView, navigate]);
 
   return (
     <Box 
@@ -619,21 +589,12 @@ const Puantaj = () => {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Şantiye</InputLabel>
-              <Select value={selectedSantiye} onChange={(e) => setSelectedSantiye(e.target.value)} label="Şantiye">
-                {santiyeler.map((santiye) => (
-                  <MenuItem key={santiye.id} value={santiye.id}>{santiye.ad}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Çalışma Şekli</InputLabel>
-              <Select value={selectedCalismaSekli} onChange={(e) => setSelectedCalismaSekli(e.target.value)} label="Çalışma Şekli">
-                <MenuItem value="TÜMÜ">Tümü</MenuItem>
-                <MenuItem value="MAAŞLI ÇALIŞAN">Maaşlı Çalışan</MenuItem>
-                <MenuItem value="YEVMİYE ÇALIŞAN">Yevmiye Çalışan</MenuItem>
+              <InputLabel>Çalışma Ş.</InputLabel>
+              <Select value={selectedCalismaSekli} onChange={(e) => setSelectedCalismaSekli(e.target.value)} label="Çalışma Ş.">
+                <MenuItem value="TÜMÜ">TÜMÜ</MenuItem>
+                <MenuItem value="MAAŞLI ÇALIŞAN">MAAŞLI ÇALIŞAN</MenuItem>
+                <MenuItem value="YEVMİYE ÇALIŞAN">YEVMİYE ÇALIŞAN</MenuItem>
               </Select>
             </FormControl>
 
@@ -649,45 +610,29 @@ const Puantaj = () => {
 
             <Button
               variant="contained"
-              onClick={() => handleExcelExport()}
-              sx={{
-                bgcolor: sidebarColor,
+              onClick={handleSavePDF}
+              sx={{ 
+                bgcolor: '#4caf50',
                 '&:hover': {
-                  bgcolor: isDarkMode ? `${sidebarColor}99` : `${sidebarColor}cc`
+                  bgcolor: '#388e3c'
                 }
               }}
             >
-              YAZDIR
+              PDF Kaydet
             </Button>
 
             <Button
               variant="contained"
-              onClick={() => handlePdfExport()}
-              sx={{
-                bgcolor: sidebarColor,
+              onClick={handlePrint}
+              sx={{ 
+                bgcolor: '#2196f3',
                 '&:hover': {
-                  bgcolor: isDarkMode ? `${sidebarColor}99` : `${sidebarColor}cc`
+                  bgcolor: '#1976d2'
                 }
               }}
             >
-              PDF KAYDET
+              Yazdır
             </Button>
-
-            {canEdit && (
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleYetkiDuzenle}
-                sx={{
-                  bgcolor: '#4caf50',
-                  '&:hover': {
-                    bgcolor: '#388e3c'
-                  }
-                }}
-              >
-                Yetkileri Düzenle
-              </Button>
-            )}
           </Box>
 
           {loading ? (
@@ -718,26 +663,8 @@ const Puantaj = () => {
                     .map((personel, index) => (
                       <tr key={personel.id} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
                         <td className={`border p-2 text-center ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{index + 1}</td>
-                        <td className={`border p-2 ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{`${personel.ad} ${personel.soyad}`}</td>
-                        {daysInMonth.map((day) => {
-                          const puantajData = allPuantajData[`${personel.ad} ${personel.soyad}`]?.[day];
-                          const durum = puantajData?.status || 'bos';
-                          const durumBilgisi = PUANTAJ_DURUMLARI[durum];
-                          
-                          return (
-                            <td
-                              key={day}
-                              onClick={() => handleCellClick(`${personel.ad} ${personel.soyad}`, day)}
-                              className={`border p-2 text-center cursor-pointer ${durumBilgisi.color} ${durumBilgisi.textColor}`}
-                              style={{
-                                backgroundColor: durumBilgisi.buttonColor,
-                                color: durumBilgisi.textColor === 'text-white' ? 'white' : 'black'
-                              }}
-                            >
-                              {puantajData?.santiyeKod || ''}
-                            </td>
-                          );
-                        })}
+                        <td className={`border p-2 ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{personel.ad} {personel.soyad}</td>
+                        {daysInMonth.map((day) => renderCell(`${personel.ad} ${personel.soyad}`, day))}
                         <td className={`border p-2 text-center ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>
                           {calculateTotal(`${personel.ad} ${personel.soyad}`)}
                         </td>
@@ -768,26 +695,8 @@ const Puantaj = () => {
                     .map((personel, index) => (
                       <tr key={personel.id} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
                         <td className={`border p-2 text-center ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{index + 1}</td>
-                        <td className={`border p-2 ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{`${personel.ad} ${personel.soyad}`}</td>
-                        {daysInMonth.map((day) => {
-                          const puantajData = allPuantajData[`${personel.ad} ${personel.soyad}`]?.[day];
-                          const durum = puantajData?.status || 'bos';
-                          const durumBilgisi = PUANTAJ_DURUMLARI[durum];
-                          
-                          return (
-                            <td
-                              key={day}
-                              onClick={() => handleCellClick(`${personel.ad} ${personel.soyad}`, day)}
-                              className={`border p-2 text-center cursor-pointer ${durumBilgisi.color} ${durumBilgisi.textColor}`}
-                              style={{
-                                backgroundColor: durumBilgisi.buttonColor,
-                                color: durumBilgisi.textColor === 'text-white' ? 'white' : 'black'
-                              }}
-                            >
-                              {puantajData?.santiyeKod || ''}
-                            </td>
-                          );
-                        })}
+                        <td className={`border p-2 ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>{personel.ad} {personel.soyad}</td>
+                        {daysInMonth.map((day) => renderCell(`${personel.ad} ${personel.soyad}`, day))}
                         <td className={`border p-2 text-center ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border'}`}>
                           {calculateTotal(`${personel.ad} ${personel.soyad}`)}
                         </td>
@@ -799,115 +708,30 @@ const Puantaj = () => {
           )}
 
           {/* Puantaj Durumu Seçme Dialog'u */}
-          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Puantaj İşlemi</DialogTitle>
+          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+            <DialogTitle>Puantaj Durumu Seç</DialogTitle>
             <DialogContent>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                <Typography>
-                  {selectedPersonelName ? `${selectedPersonelName} - ${selectedDay}. Gün` : ''}
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 1 }}>
-                  {Object.entries(PUANTAJ_DURUMLARI).map(([key, value]) => (
-                    <Button
-                      key={key}
-                      variant="contained"
-                      disabled={!canEdit}
-                      onClick={() => handleSavePuantaj(key)}
-                      sx={{
-                        bgcolor: value.buttonColor,
-                        color: value.textColor === 'text-white' ? 'white' : 'black',
-                        '&:hover': {
-                          bgcolor: value.buttonColor + 'dd'
-                        },
-                        '&:disabled': {
-                          bgcolor: value.buttonColor + '99',
-                          color: value.textColor === 'text-white' ? 'white' : 'black',
-                        }
-                      }}
-                    >
-                      {value.description}
-                    </Button>
-                  ))}
-                </Box>
-              </Box>
-            </DialogContent>
-          </Dialog>
-
-          {/* Yetki Düzenleme Dialog'u */}
-          <Dialog 
-            open={yetkiDialogOpen} 
-            onClose={() => setYetkiDialogOpen(false)}
-            maxWidth="md"
-            fullWidth
-          >
-            <DialogTitle>Kullanıcı Yetkilerini Düzenle</DialogTitle>
-            <DialogContent>
-              <Box sx={{ mt: 2 }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Kullanıcı Seç</InputLabel>
-                  <Select
-                    value={selectedUser?.id || ''}
-                    label="Kullanıcı Seç"
-                    onChange={(e) => setSelectedUser(users.find(u => u.id === e.target.value))}
+              <Box className="flex flex-col gap-4 mt-4">
+                {Object.entries(PUANTAJ_DURUMLARI).map(([key, value]) => (
+                  <Button
+                    key={key}
+                    onClick={() => {
+                      handleSavePuantaj(key);
+                      setDialogOpen(false);
+                    }}
+                    sx={{
+                      backgroundColor: value.buttonColor,
+                      color: value.textColor.includes('white') ? '#fff' : '#000',
+                      border: key === 'bos' ? '1px solid #ccc' : 'none',
+                      '&:hover': {
+                        backgroundColor: value.buttonColor,
+                        opacity: 0.9
+                      }
+                    }}
                   >
-                    {users.map((user) => (
-                      <MenuItem key={user.id} value={user.id}>
-                        {user.displayName ? (
-                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                            <Typography variant="subtitle2">{user.displayName}</Typography>
-                            <Typography variant="caption" color="text.secondary">{user.email}</Typography>
-                          </Box>
-                        ) : (
-                          user.email
-                        )}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                {selectedUser && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Typography variant="subtitle1">
-                      {selectedUser.displayName ? (
-                        <>
-                          <strong>{selectedUser.displayName}</strong>
-                          <Typography variant="body2" color="text.secondary">
-                            {selectedUser.email}
-                          </Typography>
-                        </>
-                      ) : (
-                        selectedUser.email
-                      )} için yetkiler:
-                    </Typography>
-                    
-                    <FormControl component="fieldset">
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {['PUANTAJ_GORUNTULE', 'PUANTAJ_DUZENLE', 'PUANTAJ_SILME'].map((permission) => (
-                          <FormControlLabel
-                            key={permission}
-                            control={
-                              <Checkbox
-                                checked={selectedUser.permissions?.includes(permission) || false}
-                                onChange={(e) => {
-                                  const newPermissions = e.target.checked
-                                    ? [...(selectedUser.permissions || []), permission]
-                                    : (selectedUser.permissions || []).filter(p => p !== permission);
-                                  
-                                  handleYetkiGuncelle(selectedUser.id, newPermissions);
-                                  setSelectedUser({
-                                    ...selectedUser,
-                                    permissions: newPermissions
-                                  });
-                                }}
-                              />
-                            }
-                            label={permission}
-                          />
-                        ))}
-                      </Box>
-                    </FormControl>
-                  </Box>
-                )}
+                    {value.description}
+                  </Button>
+                ))}
               </Box>
             </DialogContent>
           </Dialog>

@@ -9,12 +9,15 @@ import {
   MenuItem,
   Badge,
   Divider,
-  Avatar
+  Avatar,
+  ListItemIcon
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
-  Email as EmailIcon
+  Email as EmailIcon,
+  Settings,
+  Logout
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -161,11 +164,20 @@ const Header = ({ onMenuClick }) => {
               variant="body2"
               sx={{
                 color: 'white',
-                bgcolor: 'primary.main',
-                px: 1,
+                bgcolor: 'rgba(255,255,255,0.15)',
+                px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 fontSize: '0.75rem',
+                fontWeight: '500',
+                letterSpacing: '0.5px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }
               }}
             >
               {currentUser?.role === 'ADMIN' ? 'YÖNETİCİ' : 
@@ -175,7 +187,14 @@ const Header = ({ onMenuClick }) => {
                currentUser?.role || 'PERSONEL'}
             </Typography>
 
-            <IconButton onClick={handleMenu} sx={{ p: 0 }}>
+            <IconButton
+              onClick={handleMenu}
+              size="small"
+              sx={{ ml: 2 }}
+              aria-controls={Boolean(anchorEl) ? 'account-menu' : undefined}
+              aria-haspopup="true"
+              aria-expanded={Boolean(anchorEl) ? 'true' : undefined}
+            >
               <Avatar
                 src={currentUser?.photoURL || `https://ui-avatars.com/api/?name=${currentUser?.name}+${currentUser?.surname}&background=1a237e&color=fff`}
                 alt={currentUser?.name}
@@ -192,19 +211,54 @@ const Header = ({ onMenuClick }) => {
             </IconButton>
 
             <Menu
+              id="account-menu"
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleClose}
-              sx={{ mt: 1 }}
+              onClick={handleClose}
+              PaperProps={{
+                elevation: 0,
+                sx: {
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  mt: 1.5,
+                  '& .MuiAvatar-root': {
+                    width: 32,
+                    height: 32,
+                    ml: -0.5,
+                    mr: 1,
+                  },
+                  '&:before': {
+                    content: '""',
+                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    width: 10,
+                    height: 10,
+                    bgcolor: 'background.paper',
+                    transform: 'translateY(-50%) rotate(45deg)',
+                    zIndex: 0,
+                  },
+                },
+              }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
               <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>
-                Profil
+                <Avatar /> Profil
               </MenuItem>
               <MenuItem onClick={() => { handleClose(); navigate('/settings'); }}>
+                <ListItemIcon>
+                  <Settings fontSize="small" />
+                </ListItemIcon>
                 Ayarlar
               </MenuItem>
               <Divider />
               <MenuItem onClick={handleLogout}>
+                <ListItemIcon>
+                  <Logout fontSize="small" />
+                </ListItemIcon>
                 Çıkış Yap
               </MenuItem>
             </Menu>

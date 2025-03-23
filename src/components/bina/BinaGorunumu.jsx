@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
 import BinaYapisiDuzenle from './BinaYapisiDuzenle';
@@ -7,12 +7,48 @@ import { useTheme } from '../../contexts/ThemeContext';
 const BinaGorunumu = ({ blok, santiye, onUpdate }) => {
   const [duzenleDialogAcik, setDuzenleDialogAcik] = useState(false);
   const { isDarkMode } = useTheme();
+  const [katlar, setKatlar] = useState([]);
+
+  useEffect(() => {
+    if (blok?.katlar) {
+      const siraliKatlar = [...blok.katlar].sort((a, b) => {
+        const getKatNo = (no) => {
+          if (typeof no === 'string' && no.startsWith('B')) return -parseInt(no.slice(1));
+          if (no === '0') return 0;
+          return parseInt(no);
+        };
+        return getKatNo(b.no) - getKatNo(a.no);
+      });
+      setKatlar(siraliKatlar);
+    }
+  }, [blok?.katlar]);
 
   if (!blok?.katlar) return (
     <Paper sx={{ p: 2, textAlign: 'center' }}>
       <Typography>Lütfen bir şantiye ve blok seçin</Typography>
     </Paper>
   );
+
+  const getKatAdi = (kat) => {
+    // Önce Firebase'den gelen özel adı kontrol et
+    if (kat.ad && kat.ad.trim() !== '') {
+      return kat.ad;
+    }
+
+    // Özel ad yoksa, tip ve numaraya göre varsayılan ad oluştur
+    switch (kat.tip) {
+      case 'BODRUM':
+        return `${kat.no}. Bodrum Kat`;
+      case 'ZEMIN':
+        return 'Zemin Kat';
+      case 'CATI':
+        return 'Çatı Katı';
+      case 'ARA':
+        return 'Ara Kat';
+      default:
+        return `${kat.no}. Normal Kat`;
+    }
+  };
 
   return (
     <Box>
@@ -41,9 +77,9 @@ const BinaGorunumu = ({ blok, santiye, onUpdate }) => {
       </Box>
 
       {/* Katlar */}
-      {blok?.katlar?.map((kat, index) => (
+      {katlar.map((kat) => (
         <Box
-          key={index}
+          key={kat.no}
           sx={{
             mb: 2,
             p: 2,
@@ -54,12 +90,12 @@ const BinaGorunumu = ({ blok, santiye, onUpdate }) => {
           }}
         >
           <Typography sx={{ color: isDarkMode ? '#2196f3' : '#1976d2', mb: 1 }}>
-            {kat.no}. Kat
+            {getKatAdi(kat)}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {kat.daireler?.map((daire, i) => (
+            {kat.daireler?.map((daire) => (
               <Box
-                key={i}
+                key={daire.no}
                 sx={{
                   p: 1,
                   bgcolor: isDarkMode ? '#263238' : '#e3f2fd',

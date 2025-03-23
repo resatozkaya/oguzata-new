@@ -10,15 +10,12 @@ import {
   Container,
   MenuItem,
 } from '@mui/material';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/auth';
-import { useAuth } from '../../contexts/AuthContext';
-import { getDoc, doc } from 'firebase/firestore';
-import { db } from '../../lib/firebase/config';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     surname: '',
@@ -26,15 +23,10 @@ const Register = () => {
     password: '',
     passwordConfirm: '',
     phone: '',
+    department: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Eğer kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
-  if (currentUser) {
-    navigate('/');
-    return null;
-  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,32 +37,17 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
+    e.preventDefault();
     setError('');
-
-    // Form validasyonu
-    if (!formData.name || !formData.surname || !formData.email || !formData.password || !formData.passwordConfirm) {
-      setError('Lütfen tüm zorunlu alanları doldurun');
-      return;
-    }
 
     if (formData.password !== formData.passwordConfirm) {
       setError('Şifreler eşleşmiyor');
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Şifre en az 6 karakter olmalıdır');
-      return;
-    }
-
     try {
       setLoading(true);
-      const userCredential = await registerUser(
+      await registerUser(
         formData.email,
         formData.password,
         formData.name,
@@ -78,35 +55,10 @@ const Register = () => {
         formData.phone,
         formData.surname
       );
-      
-      // Kullanıcı başarıyla oluşturulduktan sonra giriş yap
-      if (userCredential && userCredential.user) {
-        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const roles = userData.roles || ['PERSONEL'];
-          const currentUser = {
-            uid: userCredential.user.uid,
-            email: userCredential.user.email,
-            ...userData,
-            roles,
-            permissions: userData.permissions || []
-          };
-          setCurrentUser(currentUser);
-          navigate('/');
-        }
-      }
+      navigate('/login');
     } catch (err) {
       console.error('Kayıt hatası:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Bu e-posta adresi zaten kullanımda');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Geçersiz e-posta adresi');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Şifre çok zayıf');
-      } else {
-        setError('Hesap oluşturulurken bir hata oluştu');
-      }
+      setError('Hesap oluşturulurken bir hata oluştu.');
     } finally {
       setLoading(false);
     }
@@ -193,12 +145,7 @@ const Register = () => {
             </Alert>
           )}
 
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{ width: '100%' }}
-            noValidate
-          >
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
             <TextField
               required
               fullWidth
@@ -251,22 +198,6 @@ const Register = () => {
             <TextField
               required
               fullWidth
-              label="Telefon"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              sx={textFieldStyle}
-              InputProps={{
-                sx: { fontSize: '1rem' }
-              }}
-              InputLabelProps={{
-                sx: { fontSize: '1rem' }
-              }}
-            />
-
-            <TextField
-              required
-              fullWidth
               label="Şifre"
               name="password"
               type="password"
@@ -298,6 +229,37 @@ const Register = () => {
               }}
             />
 
+            <TextField
+              required
+              fullWidth
+              label="Telefon"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              sx={textFieldStyle}
+              InputProps={{
+                sx: { fontSize: '1rem' }
+              }}
+              InputLabelProps={{
+                sx: { fontSize: '1rem' }
+              }}
+            />
+
+            <TextField
+              fullWidth
+              label="Departman"
+              name="department"
+              value={formData.department}
+              onChange={handleChange}
+              sx={textFieldStyle}
+              InputProps={{
+                sx: { fontSize: '1rem' }
+              }}
+              InputLabelProps={{
+                sx: { fontSize: '1rem' }
+              }}
+            />
+
             <Button
               type="submit"
               fullWidth
@@ -308,28 +270,31 @@ const Register = () => {
                 mb: 2,
                 py: 1.5,
                 bgcolor: '#1a237e',
+                fontSize: '1rem',
+                fontWeight: 600,
                 '&:hover': {
                   bgcolor: '#0d47a1',
                 },
-                fontSize: '1rem',
-                fontWeight: 600,
               }}
             >
-              {loading ? 'Kaydediliyor...' : 'Kayıt Ol'}
+              KAYIT OL
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>
               <Link
-                href="/login"
+                component="button"
+                variant="body1"
+                onClick={() => navigate('/login')}
                 sx={{
                   color: '#1a237e',
                   textDecoration: 'none',
+                  fontSize: '0.9rem',
                   '&:hover': {
                     textDecoration: 'underline',
                   },
                 }}
               >
-                Zaten hesabınız var mı? Giriş yapın
+                Kayıtlı bir hesabınız varsa. Giriş yapın
               </Link>
             </Box>
           </Box>

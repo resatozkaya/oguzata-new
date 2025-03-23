@@ -27,6 +27,7 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [isLoading, setIsLoading] = React.useState(false);
   const { hasPermission } = usePermission();
+  const { currentUser } = useAuth();
 
   // SantiyeSecici'nin görüneceği sayfalar
   const showSantiyeSeciciPages = [
@@ -60,6 +61,14 @@ const Layout = ({ children }) => {
     loadData();
   }, []);
 
+  // Auth sayfalarını kontrol et
+  const isAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+
+  // Auth sayfalarında veya kullanıcı giriş yapmamışsa layout'u gösterme
+  if (isAuthPage || !currentUser) {
+    return children;
+  }
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -69,19 +78,18 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Header onDrawerToggle={handleDrawerToggle} />
-      <Sidebar mobileOpen={mobileOpen} onDrawerToggle={handleDrawerToggle} />
-      
+    <Box sx={{ display: 'flex' }}>
+      <Header onMenuClick={handleDrawerToggle} />
+      <Sidebar mobileOpen={mobileOpen} onClose={handleDrawerToggle} />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 0,
           width: { sm: `calc(100% - 240px)` },
-          mt: 8,
-          bgcolor: isDarkMode ? 'background.default' : alpha('#f5f5f5', 0.9),
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: '100vh',
+          mt: '64px',
+          bgcolor: (theme) => theme.palette.mode === 'dark' ? 'background.default' : 'grey.50',
         }}
       >
         <ErrorBoundary>

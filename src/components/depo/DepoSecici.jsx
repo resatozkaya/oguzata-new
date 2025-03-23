@@ -17,15 +17,36 @@ import {
   Delete as DeleteIcon
 } from '@mui/icons-material';
 import { useDepo } from '../../contexts/DepoContext';
+import { usePermission } from '../../contexts/PermissionContext';
+import { enqueueSnackbar } from 'notistack';
 import DepoEditDialog from './DepoEditDialog';
 
 const DepoSecici = ({ onDepoSil }) => {
   const { depolar, seciliDepo, setSeciliDepo } = useDepo();
   const [menuAnchor, setMenuAnchor] = useState(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { hasPermission } = usePermission();
+  
+  // Yetki kontrolleri
+  const canEdit = hasPermission('depo_update');
+  const canDelete = hasPermission('depo_delete');
+  const isYonetim = hasPermission('YONETIM');
+
+  // Depo yetki kontrolü için yardımcı fonksiyon
+  const canManageDepo = (depo) => {
+    if (isYonetim) return true; // YÖNETİM rolü tüm depoları yönetebilir
+    return depo?.createdBy === currentUser?.email; // Diğer kullanıcılar sadece kendi depolarını
+  };
 
   const handleMenuClick = (event) => {
     event.stopPropagation();
+    if (!canEdit && !canDelete) {
+      enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
+      return;
+    }
+    if (!canManageDepo(seciliDepo)) {
+      enqueueSnackbar('Sadece kendi oluşturduğunuz depoları düzenleyebilirsiniz.', { variant: 'error' });
+      return;
+    }
     setMenuAnchor(event.currentTarget);
   };
 
@@ -63,7 +84,21 @@ const DepoSecici = ({ onDepoSil }) => {
           value={seciliDepo?.id || ''}
           label="Depo Seçin"
           onChange={handleDepoChange}
+          endAdornment={
+            seciliDepo && (canEdit || canDelete) && canManageDepo(seciliDepo) ? (
+              <IconButton
+                size="small"
+                sx={{ mr: 2 }}
+                onClick={handleMenuClick}
+              >
+                <MoreVertIcon />
+              </IconButton>
+            ) : null
+          }
         >
+          <MenuItem value="">
+            <em>Depo seçin</em>
+          </MenuItem>
           {depolar.map((depo) => (
             <MenuItem key={depo.id} value={depo.id}>
               {depo.ad}
@@ -74,10 +109,6 @@ const DepoSecici = ({ onDepoSil }) => {
 
       {seciliDepo && (
         <>
-          <IconButton size="small" onClick={handleMenuClick}>
-            <MoreVertIcon />
-          </IconButton>
-
           <Menu
             anchorEl={menuAnchor}
             open={Boolean(menuAnchor)}
@@ -91,26 +122,30 @@ const DepoSecici = ({ onDepoSil }) => {
               horizontal: 'right',
             }}
           >
-            <MenuItem onClick={() => {
-              handleMenuClose();
-              setEditDialogOpen(true);
-            }}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Depo Düzenle</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={handleDepoSil}>
-              <ListItemIcon>
-                <DeleteIcon fontSize="small" color="error" />
-              </ListItemIcon>
-              <ListItemText sx={{ color: 'error.main' }}>Depoyu Sil</ListItemText>
-            </MenuItem>
+            {canEdit && (
+              <MenuItem onClick={() => {
+                handleMenuClose();
+                // Depo düzenleme işlemi
+              }}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Depo Düzenle</ListItemText>
+              </MenuItem>
+            )}
+            {canDelete && (
+              <MenuItem onClick={handleDepoSil}>
+                <ListItemIcon>
+                  <DeleteIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <ListItemText sx={{ color: 'error.main' }}>Depoyu Sil</ListItemText>
+              </MenuItem>
+            )}
           </Menu>
 
           <DepoEditDialog
-            open={editDialogOpen}
-            onClose={() => setEditDialogOpen(false)}
+            open={Boolean(menuAnchor)}
+            onClose={handleMenuClose}
             depo={seciliDepo}
           />
         </>

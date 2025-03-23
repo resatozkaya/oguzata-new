@@ -1,117 +1,79 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase/config';
-import { PAGE_PERMISSIONS } from '../constants/permissions';
-import { USER_ROLES } from '../constants/roles';
+import { db } from '../firebase';
 
 const PermissionContext = createContext();
 
 export const usePermission = () => {
-  const context = useContext(PermissionContext);
-  if (!context) {
-    throw new Error('usePermission must be used within a PermissionProvider');
-  }
-  return context;
+  return useContext(PermissionContext);
 };
 
 export const PermissionProvider = ({ children }) => {
   const { currentUser } = useAuth();
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    const loadUserPermissions = async () => {
-      if (!currentUser) {
+    const loadPermissions = async () => {
+      if (!currentUser?.uid) {
         setPermissions([]);
+        setUserRole(null);
         setLoading(false);
         return;
       }
 
       try {
-        // Firestore'dan kullanıcı bilgilerini al
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        const userData = userDoc.data();
-        const userRoles = userData?.roles || [];
-
-        // Temel izinler
-        let userPermissions = [];
-
-        // YÖNETİM rolü için tüm izinler
-        if (userRoles.includes('YÖNETİM') || userData?.role === 'YÖNETİM') {
-          userPermissions = Object.values(PAGE_PERMISSIONS).reduce((acc, module) => {
-            return [...acc, ...Object.values(module)];
-          }, []);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const userPermissions = userData.permissions || [];
+          const role = userData.role; // Kullanıcının rolünü al
+          
+          console.log('User Role:', role); // Debug için
+          console.log('Loaded permissions:', userPermissions); // Debug için
+          
+          setUserRole(role);
+          setPermissions(userPermissions);
         } else {
-          // Firestore'dan özel izinleri al
-          const customPermissions = userData?.permissions || [];
-          userPermissions = [...customPermissions];
-
-          // Eğer eksiklik_manage yetkisi varsa, tüm eksiklik yetkilerini ekle
-          if (customPermissions.includes('eksiklik_manage')) {
-            Object.values(PAGE_PERMISSIONS.EKSIKLIK).forEach(permission => {
-              if (!userPermissions.includes(permission)) {
-                userPermissions.push(permission);
-              }
-            });
-          }
+          console.log('User document not found'); // Debug için
+          setPermissions([]);
+          setUserRole(null);
         }
-
-        // Yetkileri benzersiz yap ve kaydet
-        setPermissions([...new Set(userPermissions)]);
       } catch (error) {
-        console.error('Yetki yüklenirken hata:', error);
+        console.error('Error loading permissions:', error);
+        setPermissions([]);
+        setUserRole(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUserPermissions();
+    loadPermissions();
   }, [currentUser]);
 
   const hasPermission = (permission) => {
-    if (!currentUser) {
-      console.log('Kullanıcı oturumu bulunamadı');
-      return false;
-    }
-
-    // Debug log
-    console.log('Yetki kontrolü:', {
-      permission,
-      currentUser,
-      role: currentUser.role,
-      permissions: currentUser.permissions
-    });
-
-    // Yönetim rolüne sahip kullanıcılar için tüm yetkiler açık
-    if (currentUser.role === 'YÖNETİM' || currentUser.role === USER_ROLES.ADMIN) {
-      console.log('Yönetim rolü tespit edildi, tüm yetkiler açık');
+    // Debug için
+    console.log('Checking permission:', permission);
+    console.log('Current permissions:', permissions);
+    console.log('User role:', userRole);
+    
+    // YÖNETİM rolü tüm yetkilere sahip
+    if (userRole === 'YÖNETİM') {
       return true;
     }
 
-    // Kullanıcının yetkilerini kontrol et
-    const userPermissions = currentUser.permissions || [];
-    const hasPermission = userPermissions.includes(permission);
-    
-    console.log(`Yetki kontrolü sonucu: ${permission}`, {
-      userPermissions,
-      hasPermission
-    });
-
-    return hasPermission;
+    // Diğer roller için normal yetki kontrolü
+    return permissions.includes(permission);
   };
 
   const value = {
     permissions,
     hasPermission,
-    currentUser,
-    loading
+    loading,
+    userRole
   };
-
-  if (loading) {
-    console.log('Yetkiler yükleniyor...');
-    return null; // veya loading spinner
-  }
 
   return (
     <PermissionContext.Provider value={value}>
@@ -119,5 +81,3 @@ export const PermissionProvider = ({ children }) => {
     </PermissionContext.Provider>
   );
 };
-
-export default PermissionProvider;
