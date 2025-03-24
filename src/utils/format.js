@@ -1,19 +1,24 @@
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+
 /**
  * Tarihi formatla
  * @param {Date|string|number} date 
  * @returns {string}
  */
 export const formatDate = (date) => {
-  if (!date) return '';
-  
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
-
-  return d.toLocaleDateString('tr-TR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+  if (!date) return '-';
+  try {
+    if (date instanceof Date) {
+      return format(date, 'dd.MM.yyyy', { locale: tr });
+    } else if (date.seconds) {
+      return format(new Date(date.seconds * 1000), 'dd.MM.yyyy', { locale: tr });
+    }
+    return '-';
+  } catch (error) {
+    console.error('Tarih formatlanırken hata:', error);
+    return '-';
+  }
 };
 
 /**
@@ -23,14 +28,11 @@ export const formatDate = (date) => {
  * @returns {string}
  */
 export const formatCurrency = (amount, currency = 'TL') => {
-  if (typeof amount !== 'number') return '';
-
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: currency === 'TL' ? 'TRY' : currency,
+  if (amount === null || amount === undefined) return '-';
+  return `${Number(amount).toLocaleString('tr-TR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(amount);
+  })} ${currency}`;
 };
 
 // Para birimi formatı için yardımcı fonksiyon

@@ -21,7 +21,8 @@ import {
 import {
   Close as CloseIcon,
   Visibility as VisibilityIcon,
-  Payment as PaymentIcon
+  Payment as PaymentIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../contexts/AuthContext';
@@ -66,6 +67,100 @@ const MasrafBeyanMuhasebe = () => {
   const handleDetayGoster = (masrafBeyan) => {
     setSeciliMasrafBeyan(masrafBeyan);
     setDetayModalAcik(true);
+  };
+
+  const handleYazdir = (masrafBeyan) => {
+    setSeciliMasrafBeyan(masrafBeyan);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Masraf Beyanı</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 0;
+            }
+            body {
+              margin: 10mm;
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              max-height: 277mm;
+              overflow: hidden;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 10px;">
+            MASRAF BEYAN FORMU
+          </div>
+
+          <table style="width: 100%; margin-bottom: 15px; border: none;">
+            <tr>
+              <td style="font-weight: bold; width: 100px; border: none;">AÇIKLAMA:</td>
+              <td style="border: none;">${masrafBeyan.olusturanAdi || ''}</td>
+            </tr>
+          </table>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <tr>
+              <th style="border: 1px solid black; padding: 4px; width: 5%;">S.NO</th>
+              <th style="border: 1px solid black; padding: 4px; width: 15%;">TARİH</th>
+              <th style="border: 1px solid black; padding: 4px; width: 60%;">AÇIKLAMA</th>
+              <th style="border: 1px solid black; padding: 4px; width: 10%;">TL</th>
+              <th style="border: 1px solid black; padding: 4px; width: 10%;">USD</th>
+            </tr>
+            ${(masrafBeyan.masraflar || []).map((masraf, index) => `
+              <tr>
+                <td style="border: 1px solid black; padding: 4px; text-align: center;">${index + 1}</td>
+                <td style="border: 1px solid black; padding: 4px;">${masraf.tarih ? formatDate(new Date(masraf.tarih)) : '-'}</td>
+                <td style="border: 1px solid black; padding: 4px;">${masraf.aciklama || ''}</td>
+                <td style="border: 1px solid black; padding: 4px; text-align: right;">${formatCurrency(masraf.tutar || 0)}</td>
+                <td style="border: 1px solid black; padding: 4px;"></td>
+              </tr>
+            `).join('')}
+            ${Array(Math.max(0, 20 - (masrafBeyan.masraflar || []).length)).fill(null).map((_, index) => `
+              <tr>
+                <td style="border: 1px solid black; padding: 4px; text-align: center;">${(masrafBeyan.masraflar || []).length + index + 1}</td>
+                <td style="border: 1px solid black; padding: 4px;"></td>
+                <td style="border: 1px solid black; padding: 4px;"></td>
+                <td style="border: 1px solid black; padding: 4px;"></td>
+                <td style="border: 1px solid black; padding: 4px;"></td>
+              </tr>
+            `).join('')}
+            <tr>
+              <td colspan="3" style="border: 1px solid black; padding: 4px; text-align: right; font-weight: bold;">TOPLAM:</td>
+              <td style="border: 1px solid black; padding: 4px; text-align: right; font-weight: bold;">${formatCurrency((masrafBeyan.masraflar || []).reduce((toplam, masraf) => toplam + (parseFloat(masraf.tutar) || 0), 0))}</td>
+              <td style="border: 1px solid black; padding: 4px;"></td>
+            </tr>
+          </table>
+
+          <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            <div style="width: 45%;">
+              <div style="font-size: 11px;">DÜZENLEYEN</div>
+              <div style="margin-top: 20px;">
+                <div>${masrafBeyan.hazirlayan?.ad || masrafBeyan.olusturanAdi || ''}</div>
+                <div style="font-size: 10px; color: #666; margin-top: 4px;">${masrafBeyan.createdAt ? formatDate(masrafBeyan.createdAt) : ''}</div>
+                <div style="margin-top: 15px; border-top: 1px solid black;"></div>
+              </div>
+            </div>
+            <div style="width: 45%;">
+              <div style="font-size: 11px;">ONAYLAYAN</div>
+              <div style="margin-top: 20px;">
+                <div>${masrafBeyan.onaylayanAdi || masrafBeyan.onaylayan?.ad || ''}</div>
+                <div style="font-size: 10px; color: #666; margin-top: 4px;">${masrafBeyan.onayTarihi ? formatDate(masrafBeyan.onayTarihi) : ''}</div>
+                <div style="margin-top: 15px; border-top: 1px solid black;"></div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   const handleOdemeYap = (masrafBeyan) => {
@@ -141,9 +236,16 @@ const MasrafBeyanMuhasebe = () => {
                     <IconButton
                       size="small"
                       onClick={() => handleDetayGoster(masrafBeyan)}
-                      title="Detay Göster"
+                      sx={{ mr: 1 }}
                     >
-                      <VisibilityIcon />
+                      <VisibilityIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleYazdir(masrafBeyan)}
+                      sx={{ mr: 1 }}
+                    >
+                      <PrintIcon fontSize="small" />
                     </IconButton>
                     <IconButton
                       size="small"
@@ -151,7 +253,7 @@ const MasrafBeyanMuhasebe = () => {
                       onClick={() => handleOdemeYap(masrafBeyan)}
                       title="Ödeme Yap"
                     >
-                      <PaymentIcon />
+                      <PaymentIcon fontSize="small" />
                     </IconButton>
                   </Box>
                 </TableCell>
@@ -214,7 +316,6 @@ const MasrafBeyanMuhasebe = () => {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Tarih</TableCell>
                       <TableCell>Açıklama</TableCell>
                       <TableCell align="right">Tutar</TableCell>
                       <TableCell>Para Birimi</TableCell>
@@ -223,7 +324,6 @@ const MasrafBeyanMuhasebe = () => {
                   <TableBody>
                     {seciliMasrafBeyan.masraflar.map((masraf) => (
                       <TableRow key={masraf.id}>
-                        <TableCell>{formatDate(masraf.tarih)}</TableCell>
                         <TableCell>{masraf.aciklama}</TableCell>
                         <TableCell align="right">
                           {formatCurrency(masraf.tutar, masraf.paraBirimi)}
@@ -291,4 +391,4 @@ const MasrafBeyanMuhasebe = () => {
   );
 };
 
-export default MasrafBeyanMuhasebe; 
+export default MasrafBeyanMuhasebe;

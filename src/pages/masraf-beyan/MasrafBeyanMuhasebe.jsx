@@ -19,21 +19,21 @@ import {
   Grid
 } from '@mui/material';
 import {
-  Check as CheckIcon,
   Close as CloseIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  Payment as PaymentIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../contexts/PermissionContext';
 import { PAGE_PERMISSIONS } from '../../constants/permissions';
-import { MASRAF_BEYAN_DURUMLARI } from '../../types/masrafBeyan';
-import { masrafBeyanService } from '../../services/masrafBeyanService';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { formatDate, formatCurrency } from '../../utils/format';
-import PageTitle from '../../components/PageTitle';
 import MasrafBeyanDetay from './components/MasrafBeyanDetay';
 
-const MasrafBeyanOnay = () => {
+
+const MasrafBeyanMuhasebe = () => {
   const { currentUser } = useAuth();
   const { hasPermission } = usePermission();
   const { enqueueSnackbar } = useSnackbar();
@@ -42,78 +42,72 @@ const MasrafBeyanOnay = () => {
   const [loading, setLoading] = useState(false);
   const [seciliMasrafBeyan, setSeciliMasrafBeyan] = useState(null);
   const [detayModalAcik, setDetayModalAcik] = useState(false);
-  const [redModalAcik, setRedModalAcik] = useState(false);
-  const [redNedeni, setRedNedeni] = useState('');
+  const [odemeModalAcik, setOdemeModalAcik] = useState(false);
+  const [odemeAciklamasi, setOdemeAciklamasi] = useState('');
 
   // Yetki kontrolü
-  const canOnay = hasPermission(PAGE_PERMISSIONS.MASRAF_BEYAN.ONAY);
+  const canMuhasebe = hasPermission(PAGE_PERMISSIONS.MASRAF_BEYAN.MUHASEBE);
 
   useEffect(() => {
-    masrafBeyanlariniYukle();
-  }, []);
+    if (!canMuhasebe) return;
 
-  const masrafBeyanlariniYukle = async () => {
-    try {
-      setLoading(true);
-      const data = await masrafBeyanService.getOnayBekleyenler();
-      setMasrafBeyanlar(data);
-    } catch (error) {
-      console.error('Masraf beyanları yüklenirken hata:', error);
-      enqueueSnackbar('Masraf beyanları yüklenirken hata oluştu', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const q = query(
+      collection(db, 'masrafBeyanlar'),
+      where('durumu', '==', 'ONAYLANDI'),
+      where('odendi', '!=', true),
+      orderBy('onayTarihi', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const yeniMasraflar = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          tarih: data.tarih?.toDate?.() || data.tarih,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt,
+          onayTarihi: data.onayTarihi?.toDate?.() || data.onayTarihi
+        };
+      });
+      setMasrafBeyanlar(yeniMasraflar);
+    });
+
+    return () => unsubscribe();
+  }, [canMuhasebe]);
 
   const handleDetayGoster = (masrafBeyan) => {
     setSeciliMasrafBeyan(masrafBeyan);
     setDetayModalAcik(true);
   };
 
-  const handleReddet = (masrafBeyan) => {
+  const handleOdemeYap = (masrafBeyan) => {
     setSeciliMasrafBeyan(masrafBeyan);
-    setRedModalAcik(true);
+    setOdemeModalAcik(true);
   };
 
-  const handleReddetOnayla = async () => {
-    if (!redNedeni.trim()) {
-      enqueueSnackbar('Lütfen red nedeni giriniz', { variant: 'error' });
-      return;
-    }
-
+  const handleOdemeOnayla = async () => {
     try {
-      await masrafBeyanService.reddet(
-        seciliMasrafBeyan.id,
-        currentUser.uid,
-        currentUser.displayName,
-        redNedeni
-      );
-      enqueueSnackbar('Masraf beyanı reddedildi', { variant: 'success' });
-      setRedModalAcik(false);
-      setRedNedeni('');
-      masrafBeyanlariniYukle();
+      const docRef = doc(db, 'masrafBeyanlar', seciliMasrafBeyan.id);
+      await updateDoc(docRef, {
+        odendi: true,
+        odemeDurumu: 'Ödendi',
+        odeyenId: currentUser.uid,
+        odeyenAdi: currentUser.displayName || currentUser.email,
+        odemeTarihi: serverTimestamp(),
+        odemeAciklamasi,
+        updatedAt: serverTimestamp()
+      });
+
+      enqueueSnackbar('Ödeme kaydedildi', { variant: 'success' });
+      setOdemeModalAcik(false);
+      setOdemeAciklamasi('');
     } catch (error) {
-      console.error('Masraf beyanı reddedilirken hata:', error);
-      enqueueSnackbar('Masraf beyanı reddedilirken hata oluştu', { variant: 'error' });
+      console.error('Ödeme kaydedilirken hata:', error);
+      enqueueSnackbar('Ödeme kaydedilirken hata oluştu', { variant: 'error' });
     }
   };
 
-  const handleOnayla = async (masrafBeyan) => {
-    try {
-      await masrafBeyanService.onayla(
-        masrafBeyan.id,
-        currentUser.uid,
-        currentUser.displayName
-      );
-      enqueueSnackbar('Masraf beyanı onaylandı', { variant: 'success' });
-      masrafBeyanlariniYukle();
-    } catch (error) {
-      console.error('Masraf beyanı onaylanırken hata:', error);
-      enqueueSnackbar('Masraf beyanı onaylanırken hata oluştu', { variant: 'error' });
-    }
-  };
-
-  if (!canOnay) {
+  if (!canMuhasebe) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography>Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.</Typography>
@@ -123,9 +117,8 @@ const MasrafBeyanOnay = () => {
 
   return (
     <Box>
-      <PageTitle title="Masraf Beyan Onay" />
+      <Typography variant="h6" sx={{ mb: 3 }}>Masraf Beyan Muhasebe</Typography>
 
-      {/* Masraf Beyanları Tablosu */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -133,7 +126,9 @@ const MasrafBeyanOnay = () => {
               <TableCell>Tarih</TableCell>
               <TableCell>Oluşturan</TableCell>
               <TableCell>Şantiye</TableCell>
-              <TableCell>Toplam Tutar</TableCell>
+              <TableCell align="right">Toplam Tutar</TableCell>
+              <TableCell>Onaylayan</TableCell>
+              <TableCell>Onay Tarihi</TableCell>
               <TableCell align="center">İşlemler</TableCell>
             </TableRow>
           </TableHead>
@@ -141,14 +136,13 @@ const MasrafBeyanOnay = () => {
             {masrafBeyanlar.map((masrafBeyan) => (
               <TableRow key={masrafBeyan.id}>
                 <TableCell>{formatDate(masrafBeyan.tarih)}</TableCell>
-                <TableCell>{masrafBeyan.olusturanAdi}</TableCell>
-                <TableCell>{masrafBeyan.santiyeAdi}</TableCell>
-                <TableCell>
-                  {formatCurrency(
-                    masrafBeyan.masraflar.reduce((toplam, masraf) => toplam + masraf.tutar, 0),
-                    'TL'
-                  )}
+                <TableCell>{masrafBeyan.hazirlayan?.ad}</TableCell>
+                <TableCell>{masrafBeyan.santiye}</TableCell>
+                <TableCell align="right">
+                  {formatCurrency(masrafBeyan.toplamTutar)}
                 </TableCell>
+                <TableCell>{masrafBeyan.onaylayanAdi}</TableCell>
+                <TableCell>{formatDate(masrafBeyan.onayTarihi)}</TableCell>
                 <TableCell align="center">
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                     <IconButton
@@ -160,19 +154,11 @@ const MasrafBeyanOnay = () => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      color="success"
-                      onClick={() => handleOnayla(masrafBeyan)}
-                      title="Onayla"
+                      color="primary"
+                      onClick={() => handleOdemeYap(masrafBeyan)}
+                      title="Ödeme Yap"
                     >
-                      <CheckIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleReddet(masrafBeyan)}
-                      title="Reddet"
-                    >
-                      <CloseIcon />
+                      <PaymentIcon />
                     </IconButton>
                   </Box>
                 </TableCell>
@@ -180,8 +166,8 @@ const MasrafBeyanOnay = () => {
             ))}
             {masrafBeyanlar.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center">
-                  Onay bekleyen masraf beyanı bulunmamaktadır
+                <TableCell colSpan={7} align="center">
+                  Ödeme bekleyen onaylı masraf beyanı bulunmamaktadır
                 </TableCell>
               </TableRow>
             )}
@@ -196,17 +182,17 @@ const MasrafBeyanOnay = () => {
         masrafBeyan={seciliMasrafBeyan}
       />
 
-      {/* Red Modal */}
+      {/* Ödeme Modal */}
       <Dialog
-        open={redModalAcik}
-        onClose={() => setRedModalAcik(false)}
+        open={odemeModalAcik}
+        onClose={() => setOdemeModalAcik(false)}
         maxWidth="sm"
         fullWidth
       >
         <DialogTitle>
-          Masraf Beyanını Reddet
+          Ödeme Yap
           <IconButton
-            onClick={() => setRedModalAcik(false)}
+            onClick={() => setOdemeModalAcik(false)}
             sx={{ position: 'absolute', right: 8, top: 8 }}
           >
             <CloseIcon />
@@ -216,22 +202,22 @@ const MasrafBeyanOnay = () => {
           <Box sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              label="Red Nedeni"
+              label="Ödeme Açıklaması"
               multiline
               rows={4}
-              value={redNedeni}
-              onChange={(e) => setRedNedeni(e.target.value)}
+              value={odemeAciklamasi}
+              onChange={(e) => setOdemeAciklamasi(e.target.value)}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRedModalAcik(false)}>İptal</Button>
+          <Button onClick={() => setOdemeModalAcik(false)}>İptal</Button>
           <Button
             variant="contained"
-            color="error"
-            onClick={handleReddetOnayla}
+            color="primary"
+            onClick={handleOdemeOnayla}
           >
-            Reddet
+            Ödemeyi Kaydet
           </Button>
         </DialogActions>
       </Dialog>
@@ -239,4 +225,4 @@ const MasrafBeyanOnay = () => {
   );
 };
 
-export default MasrafBeyanOnay; 
+export default MasrafBeyanMuhasebe; 

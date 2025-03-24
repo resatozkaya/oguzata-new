@@ -18,7 +18,8 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Print as PrintIcon
+  Print as PrintIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,6 +29,8 @@ import { MASRAF_BEYAN_DURUMLARI } from '../../types/masrafBeyan';
 import { masrafBeyanService } from '../../services/masrafBeyanService';
 import { formatDate, formatCurrency } from '../../utils/format';
 import MasrafBeyanForm from './components/MasrafBeyanForm';
+import MasrafBeyanYazdir from './components/MasrafBeyanYazdir';
+import MasrafBeyanDetay from './components/MasrafBeyanDetay';
 import PageTitle from '../../components/PageTitle';
 
 const MasrafBeyan = () => {
@@ -38,6 +41,8 @@ const MasrafBeyan = () => {
   const [masrafBeyanlar, setMasrafBeyanlar] = useState([]);
   const [seciliMasrafBeyan, setSeciliMasrafBeyan] = useState(null);
   const [formModalAcik, setFormModalAcik] = useState(false);
+  const [yazdirModalAcik, setYazdirModalAcik] = useState(false);
+  const [detayModalAcik, setDetayModalAcik] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Yetki kontrolleri
@@ -86,7 +91,7 @@ const MasrafBeyan = () => {
     }
 
     try {
-      await masrafBeyanService.deleteRejected(id);
+      await masrafBeyanService.delete(id);
       enqueueSnackbar('Masraf beyanı başarıyla silindi', { variant: 'success' });
       masrafBeyanlariniYukle();
     } catch (error) {
@@ -119,6 +124,11 @@ const MasrafBeyan = () => {
       console.error('Masraf beyanı kaydedilirken hata:', error);
       enqueueSnackbar('Masraf beyanı kaydedilirken hata oluştu', { variant: 'error' });
     }
+  };
+
+  const handleDetayGoster = (masrafBeyan) => {
+    setSeciliMasrafBeyan(masrafBeyan);
+    setDetayModalAcik(true);
   };
 
   const getDurumChip = (durum) => {
@@ -197,32 +207,45 @@ const MasrafBeyan = () => {
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    {canUpdate && masrafBeyan.durumu === MASRAF_BEYAN_DURUMLARI.BEKLEMEDE && (
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDetayGoster(masrafBeyan)}
+                      title="Detay"
+                    >
+                      <InfoIcon fontSize="small" />
+                    </IconButton>
+
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSeciliMasrafBeyan(masrafBeyan);
+                        setYazdirModalAcik(true);
+                      }}
+                      title="Yazdır"
+                    >
+                      <PrintIcon fontSize="small" />
+                    </IconButton>
+
+                    {masrafBeyan.durumu !== MASRAF_BEYAN_DURUMLARI.ONAYLANDI && canUpdate && (
                       <IconButton
                         size="small"
                         onClick={() => handleDuzenle(masrafBeyan)}
                         title="Düzenle"
                       >
-                        <EditIcon />
+                        <EditIcon fontSize="small" />
                       </IconButton>
                     )}
-                    {canDelete && masrafBeyan.durumu === MASRAF_BEYAN_DURUMLARI.REDDEDILDI && (
+
+                    {masrafBeyan.durumu !== MASRAF_BEYAN_DURUMLARI.ONAYLANDI && canDelete && (
                       <IconButton
                         size="small"
                         onClick={() => handleSil(masrafBeyan.id)}
-                        color="error"
                         title="Sil"
+                        color="error"
                       >
-                        <DeleteIcon />
+                        <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
-                    <IconButton
-                      size="small"
-                      onClick={() => window.print()}
-                      title="Yazdır"
-                    >
-                      <PrintIcon />
-                    </IconButton>
                   </Box>
                 </TableCell>
               </TableRow>
@@ -238,17 +261,29 @@ const MasrafBeyan = () => {
         </Table>
       </TableContainer>
 
-      {/* Masraf Beyan Formu Modal */}
-      {formModalAcik && (
-        <MasrafBeyanForm
-          open={formModalAcik}
-          masrafBeyan={seciliMasrafBeyan}
-          onClose={handleFormKapat}
-          onSave={handleFormKaydet}
-        />
-      )}
+      {/* Detay Modal */}
+      <MasrafBeyanDetay
+        open={detayModalAcik}
+        onClose={() => setDetayModalAcik(false)}
+        masrafBeyan={seciliMasrafBeyan}
+      />
+
+      {/* Form Modal */}
+      <MasrafBeyanForm
+        open={formModalAcik}
+        onClose={handleFormKapat}
+        onSave={handleFormKaydet}
+        masrafBeyan={seciliMasrafBeyan}
+      />
+
+      {/* Yazdırma Modal */}
+      <MasrafBeyanYazdir
+        open={yazdirModalAcik}
+        onClose={() => setYazdirModalAcik(false)}
+        masrafBeyan={seciliMasrafBeyan}
+      />
     </Box>
   );
 };
 
-export default MasrafBeyan; 
+export default MasrafBeyan;
