@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   Box,
+  Container,
+  Typography,
   Paper,
   TextField,
   Button,
-  Typography,
   Avatar,
   IconButton,
   Alert,
@@ -12,32 +13,22 @@ import {
 } from '@mui/material';
 import { PhotoCamera } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { storage, db } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
-import { useNavigate } from 'react-router-dom';
+import { db } from '../config/firebase';
+import PageTitle from '../components/PageTitle';
 
 const ProfilePage = () => {
-  const { currentUser, setCurrentUser } = useAuth();
-  const navigate = useNavigate();
+  const { currentUser, updateUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [formData, setFormData] = useState({
-    name: currentUser?.name || '',
-    surname: currentUser?.surname || '',
+  const [profileData, setProfileData] = useState({
+    displayName: currentUser?.displayName || '',
     email: currentUser?.email || '',
     phone: currentUser?.phone || '',
+    department: currentUser?.department || '',
     position: currentUser?.position || ''
   });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
 
   const convertToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -48,33 +39,31 @@ const ProfilePage = () => {
     });
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
     if (!file) return;
+
+    // Dosya boyutu kontrolü (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Dosya boyutu 5MB\'dan küçük olmalıdır');
+      return;
+    }
 
     try {
       setLoading(true);
       setError('');
-
+      
       // Resmi base64'e çevir
       const base64Image = await convertToBase64(file);
-
-      // Firestore'da kullanıcı bilgilerini güncelle
-      const userRef = doc(db, 'users', currentUser.id);
-      await updateDoc(userRef, {
-        photoURL: base64Image
-      });
-
-      // Context'teki kullanıcı bilgilerini güncelle
-      setCurrentUser(prev => ({
-        ...prev,
-        photoURL: base64Image
-      }));
-
+      
+      // Sadece Firestore güncellemesi yap
+      await updateUserProfile({ photoURL: base64Image });
+      
       setSuccess('Profil resmi başarıyla güncellendi');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Resim yükleme hatası:', error);
-      setError('Profil resmi güncellenirken bir hata oluştu');
+      console.error('Profil resmi yükleme hatası:', error);
+      setError('Profil resmi yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -84,34 +73,26 @@ const ProfilePage = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setSuccess('');
 
     try {
-      // Firestore'da kullanıcı bilgilerini güncelle
-      const userRef = doc(db, 'users', currentUser.id);
+      // Firestore'daki kullanıcı dokümanını güncelle
+      const userRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userRef, {
-        name: formData.name,
-        surname: formData.surname,
-        phone: formData.phone,
-        position: formData.position
+        displayName: profileData.displayName,
+        phone: profileData.phone,
+        department: profileData.department,
+        position: profileData.position
       });
 
-      // Context'teki kullanıcı bilgilerini güncelle
-      setCurrentUser(prev => ({
-        ...prev,
-        ...formData,
-        displayName: `${formData.name} ${formData.surname}`
-      }));
+      // Auth profilini güncelle
+      await updateUserProfile({
+        displayName: profileData.displayName
+      });
 
       setSuccess('Profil bilgileri başarıyla güncellendi');
-      
-      // Kısa bir süre sonra ana sayfaya yönlendir
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
-
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Güncelleme hatası:', error);
+      console.error('Profil güncelleme hatası:', error);
       setError('Profil güncellenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -119,73 +100,70 @@ const ProfilePage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Paper sx={{ p: 4, maxWidth: 600, mx: 'auto' }}>
-        <Typography variant="h5" gutterBottom>
-          Profil Bilgileri
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-          Kişisel bilgilerinizi buradan güncelleyebilirsiniz
-        </Typography>
-
+    <Container maxWidth="md">
+      <PageTitle title="Profil" />
+      
+      <Paper sx={{ p: 4, mb: 3 }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-          <Box sx={{ position: 'relative' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ position: 'relative', mb: 2 }}>
             <Avatar
               src={currentUser?.photoURL}
-              sx={{ width: 120, height: 120 }}
+              sx={{
+                width: 120,
+                height: 120,
+                border: '2px solid',
+                borderColor: 'primary.main'
+              }}
             />
             <input
               accept="image/*"
               type="file"
-              id="icon-button-file"
+              id="profile-image-upload"
               onChange={handleImageUpload}
               style={{ display: 'none' }}
+              disabled={loading}
             />
-            <label htmlFor="icon-button-file">
+            <label htmlFor="profile-image-upload">
               <IconButton
-                color="primary"
                 component="span"
                 sx={{
                   position: 'absolute',
                   bottom: 0,
                   right: 0,
-                  bgcolor: 'background.paper'
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
                 }}
+                disabled={loading}
               >
-                <PhotoCamera />
+                {loading ? <CircularProgress size={24} color="inherit" /> : <PhotoCamera />}
               </IconButton>
             </label>
           </Box>
         </Box>
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
             margin="normal"
             required
             fullWidth
-            label="Ad"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Soyad"
-            name="surname"
-            value={formData.surname}
-            onChange={handleChange}
+            label="Ad Soyad"
+            name="displayName"
+            value={profileData.displayName}
+            onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
+            disabled={loading}
           />
           <TextField
             margin="normal"
             fullWidth
             label="E-posta"
             name="email"
-            value={formData.email}
+            value={profileData.email}
             disabled
           />
           <TextField
@@ -193,16 +171,27 @@ const ProfilePage = () => {
             fullWidth
             label="Telefon"
             name="phone"
-            value={formData.phone}
-            onChange={handleChange}
+            value={profileData.phone}
+            onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+            disabled={loading}
+          />
+          <TextField
+            margin="normal"
+            fullWidth
+            label="Departman"
+            name="department"
+            value={profileData.department}
+            onChange={(e) => setProfileData({ ...profileData, department: e.target.value })}
+            disabled={loading}
           />
           <TextField
             margin="normal"
             fullWidth
             label="Pozisyon"
             name="position"
-            value={formData.position}
-            onChange={handleChange}
+            value={profileData.position}
+            onChange={(e) => setProfileData({ ...profileData, position: e.target.value })}
+            disabled={loading}
           />
           <Button
             type="submit"
@@ -211,11 +200,11 @@ const ProfilePage = () => {
             sx={{ mt: 3 }}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : 'DEĞİŞİKLİKLERİ KAYDET'}
+            {loading ? 'Güncelleniyor...' : 'Profili Güncelle'}
           </Button>
         </Box>
       </Paper>
-    </Box>
+    </Container>
   );
 };
 

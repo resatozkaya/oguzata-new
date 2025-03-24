@@ -924,4 +924,17 @@ export const binaService = {
       throw error;
     }
   },
+
+  eksiklikDurumGuncelle: async (santiyeId, blokId, eksiklikId, yeniDurum) => {
+    try {
+      const eksiklikRef = doc(db, 'santiyeler', santiyeId, 'bloklar', blokId, 'eksiklikler', eksiklikId);
+      await updateDoc(eksiklikRef, {
+        durum: yeniDurum,
+        guncellemeTarihi: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Eksiklik durumu güncellenirken hata:', error);
+      throw error;
+    }
+  },
 };

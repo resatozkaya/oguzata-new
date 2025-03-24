@@ -495,6 +495,28 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
     }
   };
 
+  const handleEksiklikDuzenle = (eksiklik) => {
+    setSeciliEksiklik(eksiklik);
+    setFormModalAcik(true);
+  };
+
+  const handleDurumDegistir = async (eksiklikId, yeniDurum) => {
+    try {
+      await binaService.eksiklikDurumGuncelle(seciliSantiye.id, seciliBlok.id, eksiklikId, yeniDurum);
+      
+      setEksiklikler(prev => prev.map(eksiklik => 
+        eksiklik.id === eksiklikId 
+          ? { ...eksiklik, durum: yeniDurum }
+          : eksiklik
+      ));
+
+      enqueueSnackbar('Durum başarıyla güncellendi', { variant: 'success' });
+    } catch (error) {
+      console.error('Durum güncellenirken hata:', error);
+      enqueueSnackbar('Durum güncellenirken hata oluştu', { variant: 'error' });
+    }
+  };
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       {/* Üst Kısım - İstatistik Kartları */}
@@ -664,11 +686,9 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
             {seciliSantiye?.id && seciliBlok?.id ? (
               <EksiklikListesi
                 eksiklikler={filtrelenmisEksiklikler}
-                onDuzenle={(eksiklik) => {
-                  setSeciliEksiklik(eksik);
-                  setFormModalAcik(true);
-                }}
+                onDuzenle={handleEksiklikDuzenle}
                 onSil={handleEksiklikSil}
+                onDurumDegistir={handleDurumDegistir}
                 sx={{
                   '& .MuiGrid-item': {
                     width: {
@@ -800,11 +820,9 @@ const EksiklikYonetimi = ({ showTeslimatEkip = false }) => {
           }}>
             <EksiklikListesi
               eksiklikler={filtrelenmisEksiklikler}
-              onDuzenle={(eksiklik) => {
-                setSeciliEksiklik(eksik);
-                setFormModalAcik(true);
-              }}
+              onDuzenle={handleEksiklikDuzenle}
               onSil={handleEksiklikSil}
+              onDurumDegistir={handleDurumDegistir}
               sx={{
                 '& .MuiGrid-item': {
                   width: {

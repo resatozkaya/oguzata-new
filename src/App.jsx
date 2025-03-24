@@ -1,91 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { SnackbarProvider } from 'notistack';
 import { SantiyeProvider } from './contexts/SantiyeContext';
 import { DepoProvider } from './contexts/DepoContext';
 import { PermissionProvider } from './contexts/PermissionContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/layout/Layout';
 import { Box, CircularProgress } from '@mui/material';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import ProtectedRoute from './components/ProtectedRoute';
-
-// Tema oluştur
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1B5E20', // Koyu yeşil
-      light: '#4C8C4A',
-      dark: '#003300',
-      contrastText: '#fff',
-    },
-    secondary: {
-      main: '#FFA000', // Turuncu
-      light: '#FFC107',
-      dark: '#FF6F00',
-      contrastText: '#000',
-    },
-    error: {
-      main: '#D32F2F',
-    },
-    warning: {
-      main: '#FFA000',
-    },
-    info: {
-      main: '#1976D2',
-    },
-    success: {
-      main: '#388E3C',
-    },
-    background: {
-      default: '#F5F5F5',
-      paper: '#FFFFFF',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontSize: '2rem',
-      fontWeight: 500,
-    },
-    h2: {
-      fontSize: '1.75rem',
-      fontWeight: 500,
-    },
-    h3: {
-      fontSize: '1.5rem',
-      fontWeight: 500,
-    },
-    h4: {
-      fontSize: '1.25rem',
-      fontWeight: 500,
-    },
-    h5: {
-      fontSize: '1.1rem',
-      fontWeight: 500,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 500,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          padding: '8px 16px',
-        },
-      },
-    },
-  },
-});
 
 // Components
 import LoginPage from './pages/auth/LoginPage';
@@ -123,17 +46,6 @@ const App = () => {
     );
   }
 
-  // Ortak provider wrapper component
-  const ProviderWrapper = ({ children }) => (
-    <PermissionProvider>
-      <SantiyeProvider>
-        <DepoProvider>
-          {children}
-        </DepoProvider>
-      </SantiyeProvider>
-    </PermissionProvider>
-  );
-
   const routes = [
     { path: "/", element: <HomePage /> },
     { path: "/profile", element: <ProfilePage /> },
@@ -162,44 +74,47 @@ const App = () => {
   ];
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeProvider>
       <SnackbarProvider maxSnack={3}>
-        <ProviderWrapper>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<Register />} />
-            
-            {/* Protected routes */}
-            {currentUser ? (
-              <Route
-                element={
-                  <Layout>
-                    <Outlet />
-                  </Layout>
-                }
-              >
-                {routes.map((route, index) => (
+        <PermissionProvider>
+          <SantiyeProvider>
+            <DepoProvider>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<Register />} />
+                
+                {/* Protected routes */}
+                {currentUser ? (
                   <Route
-                    key={index}
-                    path={route.path}
                     element={
-                      <ProtectedRoute permissions={route.permissions}>
-                        {route.element}
-                      </ProtectedRoute>
+                      <Layout>
+                        <Outlet />
+                      </Layout>
                     }
-                  />
-                ))}
-              </Route>
-            ) : (
-              <Route path="*" element={<Navigate to="/login" />} />
-            )}
-            
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </ProviderWrapper>
+                  >
+                    {routes.map((route, index) => (
+                      <Route
+                        key={index}
+                        path={route.path}
+                        element={
+                          <ProtectedRoute permissions={route.permissions}>
+                            {route.element}
+                          </ProtectedRoute>
+                        }
+                      />
+                    ))}
+                  </Route>
+                ) : (
+                  <Route path="*" element={<Navigate to="/login" />} />
+                )}
+                
+                {/* Catch all route */}
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </DepoProvider>
+          </SantiyeProvider>
+        </PermissionProvider>
       </SnackbarProvider>
     </ThemeProvider>
   );

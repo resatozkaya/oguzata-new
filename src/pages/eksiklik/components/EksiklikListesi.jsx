@@ -13,7 +13,11 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Dialog,
-  DialogContent
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -33,11 +37,40 @@ import { format } from 'date-fns';
 import { usePermission } from '../../../contexts/PermissionContext';
 import { PAGE_PERMISSIONS } from '../../../constants/permissions';
 
-const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
+const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil, onDurumDegistir }) => {
   const { hasPermission } = usePermission();
   const canEdit = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.UPDATE);
   const canDelete = hasPermission(PAGE_PERMISSIONS.EKSIKLIK.DELETE);
   const [buyukResim, setBuyukResim] = useState(null);
+  const [durumMenu, setDurumMenu] = useState({ open: false, anchorEl: null, eksiklik: null });
+
+  const durumlar = [
+    { value: 'YENI', label: 'Yeni', icon: <NewReleasesIcon /> },
+    { value: 'DEVAM_EDIYOR', label: 'Devam Ediyor', icon: <PendingIcon /> },
+    { value: 'TAMAMLANDI', label: 'Tamamlandı', icon: <CheckCircleIcon /> },
+    { value: 'IPTAL', label: 'İptal', icon: <CancelIcon /> }
+  ];
+
+  const handleDurumClick = (event, eksiklik) => {
+    if (canEdit) {
+      setDurumMenu({
+        open: true,
+        anchorEl: event.currentTarget,
+        eksiklik
+      });
+    }
+  };
+
+  const handleDurumMenuClose = () => {
+    setDurumMenu({ open: false, anchorEl: null, eksiklik: null });
+  };
+
+  const handleDurumDegistir = (yeniDurum) => {
+    if (durumMenu.eksiklik && onDurumDegistir) {
+      onDurumDegistir(durumMenu.eksiklik.id, yeniDurum);
+    }
+    handleDurumMenuClose();
+  };
 
   // Duruma göre renk ve icon belirle
   const getDurumBilgisi = (durum) => {
@@ -248,27 +281,35 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {canEdit && (
                         <Tooltip title="Düzenle">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => onDuzenle(eksiklik)}
-                            sx={{ color: 'primary.main' }}
+                            sx={{
+                              color: 'primary.main',
+                              '&:hover': {
+                                color: 'primary.dark',
+                                backgroundColor: 'action.hover'
+                              }
+                            }}
                           >
-                            <EditIcon fontSize="small" />
+                            <EditIcon />
                           </IconButton>
                         </Tooltip>
                       )}
                       {canDelete && (
                         <Tooltip title="Sil">
-                          <IconButton 
-                            size="small" 
-                            onClick={() => {
-                              if (window.confirm('Bu eksikliği silmek istediğinizden emin misiniz?')) {
-                                onSil(eksiklik.id);
+                          <IconButton
+                            size="small"
+                            onClick={() => onSil(eksiklik.id)}
+                            sx={{
+                              color: 'error.main',
+                              '&:hover': {
+                                color: 'error.dark',
+                                backgroundColor: 'action.hover'
                               }
                             }}
-                            sx={{ color: 'error.main' }}
                           >
-                            <DeleteIcon fontSize="small" />
+                            <DeleteIcon />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -298,7 +339,14 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
                       icon={durumBilgisi.icon}
                       label={durumBilgisi.label}
                       color={durumBilgisi.color}
-                      size="small"
+                      onClick={(e) => handleDurumClick(e, eksiklik)}
+                      sx={{
+                        cursor: canEdit ? 'pointer' : 'default',
+                        '&:hover': canEdit ? {
+                          opacity: 0.9,
+                          transform: 'scale(1.02)'
+                        } : {}
+                      }}
                     />
                     <Chip
                       label={eksiklik.oncelik}
@@ -320,6 +368,31 @@ const EksiklikListesi = ({ eksiklikler, onDuzenle, onSil }) => {
           })}
         </Grid>
       </Box>
+
+      {/* Durum Değiştirme Menüsü */}
+      <Menu
+        anchorEl={durumMenu.anchorEl}
+        open={durumMenu.open}
+        onClose={handleDurumMenuClose}
+      >
+        {durumlar.map((durum) => (
+          <MenuItem
+            key={durum.value}
+            onClick={() => handleDurumDegistir(durum.value)}
+            sx={{
+              gap: 1,
+              minWidth: 200,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {React.cloneElement(durum.icon, {
+              sx: { color: getDurumBilgisi(durum.value).color + '.main' }
+            })}
+            {durum.label}
+          </MenuItem>
+        ))}
+      </Menu>
 
       {/* Resim Büyütme Modal */}
       <Dialog
