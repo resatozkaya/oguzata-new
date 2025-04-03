@@ -103,7 +103,7 @@ const MasrafBeyanOnay = () => {
         durumu: 'REDDEDILDI',
         redNedeni,
         reddedenId: currentUser.uid,
-        reddedenAdi: currentUser.displayName || currentUser.email,
+        reddedenAdi: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}` : currentUser.email,
         redTarihi: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -123,7 +123,7 @@ const MasrafBeyanOnay = () => {
       await updateDoc(docRef, {
         durumu: 'ONAYLANDI',
         onaylayanId: currentUser.uid,
-        onaylayanAdi: currentUser.displayName || currentUser.email,
+        onaylayanAdi: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}` : currentUser.email,
         onayTarihi: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -236,7 +236,7 @@ const MasrafBeyanOnay = () => {
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2">Oluşturan</Typography>
-                  <Typography>{seciliMasrafBeyan.hazirlayan?.ad}</Typography>
+                  <Typography>{seciliMasrafBeyan.hazirlayan?.name ? `${seciliMasrafBeyan.hazirlayan.name} ${seciliMasrafBeyan.hazirlayan.surname || ''}` : seciliMasrafBeyan.hazirlayan?.ad || '-'}</Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2">Şantiye</Typography>

@@ -95,16 +95,30 @@ export const PermissionProvider = ({ children }) => {
       ],
       [ROLES.SANTIYE_SEFI]: [
         'dashboard_view',
-        ...Object.values(PAGE_PERMISSIONS.SANTIYE),
-        ...Object.values(PAGE_PERMISSIONS.PERSONEL),
-        ...Object.values(PAGE_PERMISSIONS.PUANTAJ),
-        ...Object.values(PAGE_PERMISSIONS.DEPO),
-        ...Object.values(PAGE_PERMISSIONS.GUNLUK_RAPOR),
-        ...Object.values(PAGE_PERMISSIONS.MESAJLASMA),
-        PAGE_PERMISSIONS.TESLIMAT.VIEW,
-        PAGE_PERMISSIONS.TESLIMAT.CREATE,
-        PAGE_PERMISSIONS.MASRAF_BEYAN.VIEW,
-        PAGE_PERMISSIONS.MASRAF_BEYAN.CREATE,
+        // Şantiye yetkileri
+        PAGE_PERMISSIONS.SANTIYE.VIEW,
+        // Personel yetkileri
+        PAGE_PERMISSIONS.PERSONEL.VIEW,
+        // Puantaj yetkileri
+        PAGE_PERMISSIONS.PUANTAJ.VIEW,
+        PAGE_PERMISSIONS.PUANTAJ.CREATE,
+        PAGE_PERMISSIONS.PUANTAJ.UPDATE,
+        PAGE_PERMISSIONS.PUANTAJ.DELETE,
+        PAGE_PERMISSIONS.PUANTAJ.MANAGE,
+        // Depo yetkileri
+        PAGE_PERMISSIONS.DEPO.VIEW,
+        // Günlük rapor yetkileri
+        PAGE_PERMISSIONS.GUNLUK_RAPOR.VIEW,
+        PAGE_PERMISSIONS.GUNLUK_RAPOR.CREATE,
+        PAGE_PERMISSIONS.GUNLUK_RAPOR.UPDATE,
+        PAGE_PERMISSIONS.GUNLUK_RAPOR.DELETE,
+        PAGE_PERMISSIONS.GUNLUK_RAPOR.MANAGE,
+        // Mesajlaşma yetkileri
+        PAGE_PERMISSIONS.MESAJLASMA.VIEW,
+        PAGE_PERMISSIONS.MESAJLASMA.SEND,
+        PAGE_PERMISSIONS.MESAJLASMA.DELETE,
+        PAGE_PERMISSIONS.MESAJLASMA.MANAGE,
+        // Diğer yetkiler
         PAGE_PERMISSIONS.AYARLAR.VIEW,
       ],
     };

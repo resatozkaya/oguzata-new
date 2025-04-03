@@ -92,7 +92,7 @@ const MasrafBeyanMuhasebe = () => {
         odendi: true,
         odemeDurumu: 'Ödendi',
         odeyenId: currentUser.uid,
-        odeyenAdi: currentUser.displayName || currentUser.email,
+        odeyenAdi: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}` : currentUser.email,
         odemeTarihi: serverTimestamp(),
         odemeAciklamasi,
         updatedAt: serverTimestamp()
@@ -136,7 +136,7 @@ const MasrafBeyanMuhasebe = () => {
             {masrafBeyanlar.map((masrafBeyan) => (
               <TableRow key={masrafBeyan.id}>
                 <TableCell>{formatDate(masrafBeyan.tarih)}</TableCell>
-                <TableCell>{masrafBeyan.hazirlayan?.ad}</TableCell>
+                <TableCell>{masrafBeyan.hazirlayan?.name ? `${masrafBeyan.hazirlayan.name} ${masrafBeyan.hazirlayan.surname || ''}` : masrafBeyan.hazirlayan?.ad || '-'}</TableCell>
                 <TableCell>{masrafBeyan.santiye}</TableCell>
                 <TableCell align="right">
                   {formatCurrency(masrafBeyan.toplamTutar)}

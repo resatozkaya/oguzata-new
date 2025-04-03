@@ -52,11 +52,11 @@ const PersonelListesi = () => {
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
 
   // Yetki kontrolleri
-  const { hasPermission: canView } = usePermission(PAGE_PERMISSIONS.PERSONEL.VIEW);
-  const { hasPermission: canCreate } = usePermission(PAGE_PERMISSIONS.PERSONEL.CREATE);
-  const { hasPermission: canUpdate } = usePermission(PAGE_PERMISSIONS.PERSONEL.UPDATE);
-  const { hasPermission: canDelete } = usePermission(PAGE_PERMISSIONS.PERSONEL.DELETE);
-  const { hasPermission: canManagePermissions } = usePermission(PAGE_PERMISSIONS.PERSONEL.MANAGE_PERMISSIONS);
+  const canView = hasPermission(PAGE_PERMISSIONS.PERSONEL.VIEW);
+  const canCreate = hasPermission(PAGE_PERMISSIONS.PERSONEL.CREATE);
+  const canUpdate = hasPermission(PAGE_PERMISSIONS.PERSONEL.UPDATE);
+  const canDelete = hasPermission(PAGE_PERMISSIONS.PERSONEL.DELETE);
+  const canManagePermissions = hasPermission(PAGE_PERMISSIONS.PERSONEL.MANAGE_PERMISSIONS);
 
   useEffect(() => {
     loadPersonnel();
@@ -125,7 +125,7 @@ const PersonelListesi = () => {
     });
 
   const handleEdit = (id) => {
-    if (!hasPermission('personel_update')) {
+    if (!canUpdate) {
       enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
@@ -133,7 +133,7 @@ const PersonelListesi = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!hasPermission('personel_delete')) {
+    if (!canDelete) {
       enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
@@ -150,7 +150,7 @@ const PersonelListesi = () => {
   };
 
   const handleStatusChange = async (id, currentStatus) => {
-    if (!hasPermission('personel_update')) {
+    if (!canUpdate) {
       enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
@@ -173,7 +173,7 @@ const PersonelListesi = () => {
   };
 
   const handleAddNew = () => {
-    if (!hasPermission('personel_create')) {
+    if (!canCreate) {
       enqueueSnackbar('Bu işlem için yetkiniz bulunmamaktadır.', { variant: 'error' });
       return;
     }
@@ -184,7 +184,7 @@ const PersonelListesi = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <PageTitle title="Personel Listesi" />
-        {hasPermission('personel_create') && (
+        {canCreate && (
           <Button
             variant="contained"
             color="primary"
@@ -301,13 +301,13 @@ const PersonelListesi = () => {
                       label={person.aktif ? 'AKTİF' : 'PASİF'}
                       color={person.aktif ? 'success' : 'default'}
                       size="small"
-                      onClick={() => hasPermission('personel_update') && handleStatusChange(person.id, person.aktif)}
-                      sx={{ cursor: hasPermission('personel_update') ? 'pointer' : 'not-allowed' }}
+                      onClick={() => canUpdate && handleStatusChange(person.id, person.aktif)}
+                      sx={{ cursor: canUpdate ? 'pointer' : 'not-allowed' }}
                     />
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                      {hasPermission('personel_update') && (
+                      {canUpdate && (
                         <Tooltip title="Düzenle">
                           <IconButton
                             onClick={() => handleEdit(person.id)}
@@ -318,7 +318,7 @@ const PersonelListesi = () => {
                           </IconButton>
                         </Tooltip>
                       )}
-                      {hasPermission('personel_delete') && (
+                      {canDelete && (
                         <Tooltip title="Sil">
                           <IconButton
                             onClick={() => handleDelete(person.id)}

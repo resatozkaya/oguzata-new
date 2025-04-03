@@ -108,7 +108,7 @@ const MasrafBeyanListesi = ({ onPrint }) => {
           {masraflar.map((masraf) => (
             <TableRow key={masraf.id}>
               <TableCell>{formatTarih(masraf.tarih)}</TableCell>
-              <TableCell>{masraf.hazirlayan?.ad || '-'}</TableCell>
+              <TableCell>{masraf.hazirlayan?.name ? `${masraf.hazirlayan.name} ${masraf.hazirlayan.surname || ''}` : masraf.hazirlayan?.ad || '-'}</TableCell>
               <TableCell>{masraf.santiye}</TableCell>
               <TableCell align="right">
                 {Number(masraf.toplamTutar).toLocaleString('tr-TR', {

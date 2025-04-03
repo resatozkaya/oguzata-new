@@ -77,7 +77,7 @@ const MasrafBeyanForm = ({ open, onClose }) => {
         tarih: serverTimestamp(),
         hazirlayan: {
           id: currentUser.uid,
-          ad: currentUser.displayName || currentUser.email
+          ad: currentUser.name ? `${currentUser.name} ${currentUser.surname || ''}` : currentUser.email
         },
         kalemler: kalemler.map(kalem => ({
           ...kalem,
