@@ -30,17 +30,13 @@ export const PermissionProvider = ({ children }) => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const userPermissions = userData.permissions || [];
-          const role = userData.role; // Kullanıcının rolünü al
+          const role = userData.role;
           
-          console.log('User Role:', role); // Debug için
-          console.log('Loaded permissions:', userPermissions); // Debug için
+          console.log('User Role:', role);
+          console.log('User Permissions:', userPermissions);
           
           setUserRole(role);
           setPermissions(userPermissions);
-        } else {
-          console.log('User document not found'); // Debug için
-          setPermissions([]);
-          setUserRole(null);
         }
       } catch (error) {
         console.error('Error loading permissions:', error);
@@ -65,67 +61,14 @@ export const PermissionProvider = ({ children }) => {
       return true;
     }
 
-    // Önce kullanıcının veritabanındaki permissions dizisini kontrol et
-    if (permissions.includes(permission)) {
+    // Anasayfa yetkisi - eğer kullanıcının herhangi bir rolü varsa anasayfayı görebilir
+    if (permission === 'dashboard_view' && userRole) {
       return true;
     }
 
-    // Eğer permissions dizisinde yoksa, role göre kontrol et
-    const rolePermissions = {
-      [ROLES.MUHASEBE]: [
-        // Anasayfa yetkileri
-        'dashboard_view',
-        // Masraf muhasebe yetkisi
-        PAGE_PERMISSIONS.MASRAF_BEYAN.MUHASEBE,
-        // Mesajlaşma yetkileri
-        PAGE_PERMISSIONS.MESAJLASMA.VIEW,
-        PAGE_PERMISSIONS.MESAJLASMA.SEND,
-        PAGE_PERMISSIONS.MESAJLASMA.DELETE,
-        PAGE_PERMISSIONS.MESAJLASMA.MANAGE,
-        // Ayarlar yetkileri
-        PAGE_PERMISSIONS.AYARLAR.VIEW,
-        PAGE_PERMISSIONS.AYARLAR.UPDATE,
-        PAGE_PERMISSIONS.AYARLAR.MANAGE,
-      ],
-      [ROLES.PERSONEL]: [
-        'dashboard_view',
-        ...Object.values(PAGE_PERMISSIONS).map(module => module.VIEW),
-        PAGE_PERMISSIONS.MESAJLASMA.SEND,
-        PAGE_PERMISSIONS.AYARLAR.VIEW,
-      ],
-      [ROLES.SANTIYE_SEFI]: [
-        'dashboard_view',
-        // Şantiye yetkileri
-        PAGE_PERMISSIONS.SANTIYE.VIEW,
-        // Personel yetkileri
-        PAGE_PERMISSIONS.PERSONEL.VIEW,
-        // Puantaj yetkileri
-        PAGE_PERMISSIONS.PUANTAJ.VIEW,
-        PAGE_PERMISSIONS.PUANTAJ.CREATE,
-        PAGE_PERMISSIONS.PUANTAJ.UPDATE,
-        PAGE_PERMISSIONS.PUANTAJ.DELETE,
-        PAGE_PERMISSIONS.PUANTAJ.MANAGE,
-        // Depo yetkileri
-        PAGE_PERMISSIONS.DEPO.VIEW,
-        // Günlük rapor yetkileri
-        PAGE_PERMISSIONS.GUNLUK_RAPOR.VIEW,
-        PAGE_PERMISSIONS.GUNLUK_RAPOR.CREATE,
-        PAGE_PERMISSIONS.GUNLUK_RAPOR.UPDATE,
-        PAGE_PERMISSIONS.GUNLUK_RAPOR.DELETE,
-        PAGE_PERMISSIONS.GUNLUK_RAPOR.MANAGE,
-        // Mesajlaşma yetkileri
-        PAGE_PERMISSIONS.MESAJLASMA.VIEW,
-        PAGE_PERMISSIONS.MESAJLASMA.SEND,
-        PAGE_PERMISSIONS.MESAJLASMA.DELETE,
-        PAGE_PERMISSIONS.MESAJLASMA.MANAGE,
-        // Diğer yetkiler
-        PAGE_PERMISSIONS.AYARLAR.VIEW,
-      ],
-    };
-
-    // Rol için tanımlı yetkiler varsa kontrol et
-    if (userRole && rolePermissions[userRole]) {
-      return rolePermissions[userRole].includes(permission);
+    // Kullanıcının yetkilerini kontrol et
+    if (permissions.includes(permission)) {
+      return true;
     }
 
     return false;
