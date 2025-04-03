@@ -42,7 +42,7 @@ const GunlukRapor = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
   const { hasPermission } = usePermission();
-  
+
   // Yetki kontrolleri
   const canView = hasPermission('gunluk_rapor_view');
   const canEdit = hasPermission('gunluk_rapor_update');
@@ -72,6 +72,7 @@ const GunlukRapor = () => {
     adSoyad: "",
     statu: "",
     firma: "",
+    firmaAdi: "",
     calismaSekli: "",
   });
   const [selectedSantiye, setSelectedSantiye] = useState("");
@@ -81,11 +82,22 @@ const GunlukRapor = () => {
   const [editMode, setEditMode] = useState(false);
   const [editRaporId, setEditRaporId] = useState(null);
 
+  // Son bir ay için varsayılan tarih filtresi
+  const defaultStartDate = useMemo(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 1); // 1 ay öncesi
+    return format(date, 'yyyy-MM-dd');
+  }, []);
+
+  const defaultEndDate = useMemo(() => {
+    return format(new Date(), 'yyyy-MM-dd');
+  }, []);
+
   const [filterPersonel, setFilterPersonel] = useState("");
   const [filterSantiye, setFilterSantiye] = useState("");
   const [filterFirma, setFilterFirma] = useState("");
-  const [filterDateStart, setFilterDateStart] = useState("");
-  const [filterDateEnd, setFilterDateEnd] = useState("");
+  const [filterDateStart, setFilterDateStart] = useState(defaultStartDate);
+  const [filterDateEnd, setFilterDateEnd] = useState(defaultEndDate);
   const [searchText, setSearchText] = useState("");
   const [filteredRaporList, setFilteredRaporList] = useState([]);
 
@@ -150,8 +162,8 @@ const GunlukRapor = () => {
     setFilterPersonel("");
     setFilterSantiye("");
     setFilterFirma("");
-    setFilterDateStart("");
-    setFilterDateEnd("");
+    setFilterDateStart(defaultStartDate);
+    setFilterDateEnd(defaultEndDate);
     setSearchText("");
   };
 
@@ -192,6 +204,13 @@ const GunlukRapor = () => {
   
     fetchData();
   }, []);
+
+  // Filtre değiştiğinde yeniden sorgu yapalım
+  useEffect(() => {
+    if (filterDateStart && filterDateEnd) {
+      fetchAllRaporlar();
+    }
+  }, [filterDateStart, filterDateEnd]);
 
   useEffect(() => {
     const firmalar = [...new Set(personelList.map(p => p.firma).filter(Boolean))];
@@ -261,44 +280,66 @@ const GunlukRapor = () => {
 
   const fetchAllRaporlar = async () => {
     try {
+      // Varsayılan filtreleme tarihleri için tarih nesneleri oluşturalım
+      const startDate = new Date(filterDateStart);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(filterDateEnd);
+      endDate.setHours(23, 59, 59, 999);
+      
+      console.log("Filtreleme tarih aralığı:", startDate, endDate);
+      
+      // Geçici çözüm: Tarih filtresiz tüm raporları çekelim ve JavaScript'te filtreleyelim
       const gunlukRaporlarRef = collectionGroup(db, "raporlar");
       const raporlarSnapshot = await getDocs(gunlukRaporlarRef);
-
-      const allRaporlar = raporlarSnapshot.docs.map((doc) => {
-        const data = doc.data();
-        // Firestore timestamp'i varsa Date objesine çevir
-        if (data.createdAt && typeof data.createdAt === 'object' && data.createdAt.toDate) {
-          data.createdAt = data.createdAt.toDate();
-        }
-        return {
-          id: doc.id,
-          ...data
-        };
-      });
-
-      // Tarihe göre sırala - en yeniden eskiye
-      allRaporlar.sort((a, b) => {
-        const dateA = new Date(a.createdAt);
-        const dateB = new Date(b.createdAt);
-        return dateB - dateA;
-      });
-
+      
+      // JavaScript'te filtreleme yapalım
+      const allRaporlar = raporlarSnapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          if (data.createdAt && typeof data.createdAt === 'object' && data.createdAt.toDate) {
+            data.createdAt = data.createdAt.toDate();
+          }
+          return {
+            id: doc.id,
+            ...data
+          };
+        })
+        .filter(rapor => {
+          if (!rapor.createdAt) return false;
+          
+          const raporDate = new Date(rapor.createdAt);
+          return raporDate >= startDate && raporDate <= endDate;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA;
+        });
+  
+      console.log("Filtrelenmiş rapor sayısı:", allRaporlar.length);
       setRaporList(allRaporlar);
     } catch (error) {
-      console.error("Tüm raporları çekme hatası:", error);
-      alert("Raporları alırken bir hata oluştu!");
+      console.error("Filtrelenmiş raporları çekme hatası:", error);
+      console.error("Hata detayı:", error.message);
+      enqueueSnackbar("Raporları alırken bir hata oluştu", { variant: "error" });
+      
+      // Hata olursa boş liste gösterelim
+      setRaporList([]);
     }
   };
 
   const handlePersonelChange = (e) => {
     const personelId = e.target.value;
     const personel = personelList.find((p) => p.id === personelId);
+    console.log("Seçilen personel:", personel); // Debug için eklendi
     setSelectedPersonel(personelId);
     if (personel) {
       setPersonelDetails({
         adSoyad: personel.adSoyad,
         statu: personel["statü"] || personel["statu"] || "", 
-        firma: personel.firma || "",
+        firma: personel.firma || personel.firmaAdi || "OĞUZATA", // Default firma eklendi
+        firmaAdi: personel.firmaAdi || personel.firma || "OĞUZATA", // Default firma eklendi
         calismaSekli: personel.calismaSekli || "",
       });
     }
@@ -343,6 +384,7 @@ const GunlukRapor = () => {
         adSoyad: rapor.personelAdi || '',
         statu: rapor.statu || '',
         firma: rapor.firma || '',
+        firmaAdi: rapor.firmaAdi || '',
         calismaSekli: rapor.calismaSekli || ''
       });
 
@@ -374,7 +416,8 @@ const GunlukRapor = () => {
         personelId: selectedPersonel,
         personelAdi: secilenPersonel?.adSoyad || "",
         statu: personelDetails.statu || "",
-        firma: personelDetails.firma,
+        firma: personelDetails.firma || "OĞUZATA", // Default firma eklendi
+        firmaAdi: personelDetails.firmaAdi || "OĞUZATA", // Default firma eklendi
         calismaSekli: personelDetails.calismaSekli,
         santiye: selectedSantiye,
         santiyeAdi: secilenSantiye?.ad || selectedSantiye,
@@ -384,6 +427,8 @@ const GunlukRapor = () => {
         createdBy: currentUser.email,
         userId: currentUser.id
       };
+
+      console.log("Kaydedilecek rapor:", newRapor); // Debug için eklendi
   
       const raporRef = collection(db, "gunlukRaporlar", format(tarih, 'yyyy-MM-dd'), "raporlar");
       await addDoc(raporRef, newRapor);
@@ -395,6 +440,7 @@ const GunlukRapor = () => {
         adSoyad: "",
         statu: "",
         firma: "",
+        firmaAdi: "",
         calismaSekli: ""
       });
       enqueueSnackbar("Rapor başarıyla kaydedildi!", { variant: 'success' });
@@ -429,7 +475,8 @@ const GunlukRapor = () => {
         personelId: selectedPersonel,
         personelAdi: secilenPersonel?.adSoyad || "",
         statu: personelDetails.statu || "",
-        firma: personelDetails.firma,
+        firma: personelDetails.firma || "",
+        firmaAdi: personelDetails.firmaAdi || "",
         calismaSekli: personelDetails.calismaSekli,
         santiye: selectedSantiye,
         santiyeAdi: secilenSantiye?.ad || selectedSantiye,
@@ -450,6 +497,7 @@ const GunlukRapor = () => {
         adSoyad: "",
         statu: "",
         firma: "",
+        firmaAdi: "",
         calismaSekli: ""
       });
       enqueueSnackbar("Rapor başarıyla güncellendi!", { variant: 'success' });
@@ -542,7 +590,7 @@ const GunlukRapor = () => {
           tarih: raporDate,
           personel: rapor.personelAdi,
           santiye: rapor.santiyeAdi || rapor.santiye,
-          firma: rapor.firma || '-',
+          firma: rapor.firma || rapor.firmaAdi || '-',
           yapilanIs: rapor.yapilanIs
         });
       });
@@ -882,9 +930,9 @@ const GunlukRapor = () => {
                   {rapor.yapilanIs}
                 </Typography>
 
-                {rapor.firma && (
+                {(rapor.firma || rapor.firmaAdi) && (
                   <Typography color="text.secondary" sx={{ mt: 1 }}>
-                    Firma: {rapor.firma}
+                    Firma: {rapor.firma || rapor.firmaAdi}
                   </Typography>
                 )}
               </CardContent>

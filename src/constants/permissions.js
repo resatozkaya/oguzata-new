@@ -184,17 +184,19 @@ export const ROLE_PERMISSIONS = {
     PAGE_PERMISSIONS.AYARLAR.UPDATE,
   ],
   
-  // MUHASEBE rolü finansal işlemlerde yetkili
+  // MUHASEBE rolü sadece belirli sayfalara erişebilir
   [ROLES.MUHASEBE]: [
+    // Anasayfa yetkileri
+    'dashboard_view',
+    // Masraf beyan yetkileri
     PAGE_PERMISSIONS.MASRAF_BEYAN.VIEW,
     PAGE_PERMISSIONS.MASRAF_BEYAN.CREATE,
     PAGE_PERMISSIONS.MASRAF_BEYAN.UPDATE,
+    PAGE_PERMISSIONS.MASRAF_BEYAN.DELETE,
     PAGE_PERMISSIONS.MASRAF_BEYAN.MUHASEBE,
-    ...Object.values(PAGE_PERMISSIONS.HAKEDIS),
-    ...Object.values(PAGE_PERMISSIONS.SOZLESME),
-    ...Object.values(PAGE_PERMISSIONS.KESINTI),
-    ...Object.values(PAGE_PERMISSIONS.BIRIM_FIYAT),
+    // Mesajlaşma yetkileri
     ...Object.values(PAGE_PERMISSIONS.MESAJLASMA),
+    // Ayarlar yetkileri
     PAGE_PERMISSIONS.AYARLAR.VIEW,
     PAGE_PERMISSIONS.AYARLAR.UPDATE,
   ],

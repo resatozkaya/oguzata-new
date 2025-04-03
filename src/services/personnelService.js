@@ -111,6 +111,7 @@ class PersonnelService {
   // Yeni personel ekle
   async addPersonnel(data) {
     try {
+      console.log('Kaydedilecek personel verisi:', data); 
       // Tarih alanlarını Firestore Timestamp'e dönüştür
       const newData = {
         ...data,
@@ -119,7 +120,7 @@ class PersonnelService {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-
+      console.log('Firebase\'e kaydedilecek veri:', newData); 
       // Firma alanını firmaAdi olarak kaydet
       if (newData.firma) {
         newData.firmaAdi = newData.firma;

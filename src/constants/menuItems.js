@@ -24,6 +24,7 @@ export const menuItems = [
     title: 'Anasayfa',
     icon: React.createElement(DashboardIcon),
     path: '/',
+    permission: 'dashboard_view',
   },
   {
     title: 'Şantiye Yönetimi',
@@ -60,8 +61,8 @@ export const menuItems = [
     icon: React.createElement(InventoryIcon),
     path: '/depo',
     permission: PAGE_PERMISSIONS.DEPO.VIEW,
-  },
-  /* {
+  }, /*
+ {
     title: 'Sözleşme ve Hakediş',
     icon: React.createElement(ReceiptIcon),
     children: [
@@ -114,7 +115,7 @@ export const menuItems = [
         permission: PAGE_PERMISSIONS.TASERON.VIEW,
       }
     ]
-  }, */
+  },*/
   {
     title: 'Masraf Beyan',
     icon: React.createElement(ReceiptIcon),

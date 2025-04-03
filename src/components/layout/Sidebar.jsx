@@ -107,24 +107,24 @@ const Sidebar = () => {
         <Box sx={{ overflow: 'auto', mt: '64px', flex: 1 }}>
           <List>
             {menuItems.map((item) => (
-              <React.Fragment key={item.title}>
-                <ListItem disablePadding>
-                  <ListItemButton
-                    onClick={(e) => handleMenuClick(e, item)}
-                    selected={location.pathname === item.path || openMenu === item.title}
-                    sx={{
-                      '&.Mui-selected': {
-                        bgcolor: 'rgba(255, 255, 255, 0.1)',
-                        '&:hover': {
-                          bgcolor: 'rgba(255, 255, 255, 0.2)',
+                <React.Fragment key={item.title}>
+                  <ListItem disablePadding>
+                    <ListItemButton
+                      onClick={(e) => handleMenuClick(e, item)}
+                      selected={location.pathname === item.path || openMenu === item.title}
+                      sx={{
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
+                          },
                         },
-                      },
-                      '&:hover': {
-                        bgcolor: 'rgba(255, 255, 255, 0.1)',
-                      },
-                      opacity: item.permission && !hasPermission(item.permission) ? 0.6 : 1,
-                    }}
-                  >
+                        '&:hover': {
+                          bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        },
+                        opacity: item.permission && !hasPermission(item.permission) ? 0.6 : 1,
+                      }}
+                    >
                     <ListItemIcon sx={{ color: 'white', minWidth: 40 }}>
                       {item.icon}
                     </ListItemIcon>

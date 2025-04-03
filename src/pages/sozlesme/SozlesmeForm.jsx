@@ -17,7 +17,15 @@ import {
   Stack,
   IconButton,
   Tabs,
-  Tab
+  Tab,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  InputAdornment
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -33,7 +41,6 @@ import { tr } from 'date-fns/locale';
 import { CloudUpload as CloudUploadIcon, Delete as DeleteIcon, Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { useAuth } from '../../contexts/AuthContext';
-import { TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Paper, InputAdornment } from '@mui/material';
 import sozlesmeService from '../../services/sozlesmeService';
 
 const VisuallyHiddenInput = styled('input')({
@@ -534,21 +541,45 @@ const SozlesmeForm = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
-        {id ? 'Sözleşme Düzenle' : 'Yeni Sözleşme'}
-      </Typography>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
-      <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
-        <Tab label="Sözleşme Bilgileri" />
-        <Tab label="İş Kalemleri" />
-      </Tabs>
+      <Card sx={{
+        bgcolor: isDarkMode ? 'background.paper' : '#fff',
+        boxShadow: 3,
+        borderRadius: 2,
+        mb: 3
+      }}>
+        <CardContent>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={(e, newValue) => setActiveTab(newValue)}
+              sx={{
+                '& .MuiTab-root': {
+                  fontSize: '1rem',
+                  textTransform: 'none'
+                }
+              }}
+            >
+              <Tab label="Sözleşme Bilgileri" />
+              <Tab label="Birim Fiyatlar" />
+            </Tabs>
+          </Box>
 
-      {activeTab === 0 ? (
-        <form onSubmit={handleSubmit}>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
+          {/* Sözleşme Bilgileri Tab */}
+          {activeTab === 0 && (
+            <form onSubmit={handleSubmit}>
               <Grid container spacing={3}>
                 {/* Temel Bilgiler */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Temel Bilgiler
+                  </Typography>
+                </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
@@ -739,51 +770,73 @@ const SozlesmeForm = () => {
                   )}
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
-        </form>
-      ) : (
-        <Box>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Grid container spacing={2}>
+
+              <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/sozlesme')}
+                  disabled={saving}
+                >
+                  İptal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={saving}
+                  sx={{
+                    bgcolor: sidebarColor,
+                    '&:hover': {
+                      bgcolor: alpha(sidebarColor, 0.8)
+                    }
+                  }}
+                >
+                  {saving ? <CircularProgress size={24} /> : 'Kaydet'}
+                </Button>
+              </Box>
+            </form>
+          )}
+
+          {/* Birim Fiyatlar Tab */}
+          {activeTab === 1 && (
+            <Box>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={2}>
                   <TextField
                     fullWidth
                     label="Poz No"
+                    name="pozNo"
                     value={yeniIsKalemi.pozNo}
                     onChange={(e) => setYeniIsKalemi({ ...yeniIsKalemi, pozNo: e.target.value })}
-                    required
                   />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
-                    label="İş Kalemi"
+                    label="Tanım"
+                    name="tanim"
                     value={yeniIsKalemi.tanim}
                     onChange={(e) => setYeniIsKalemi({ ...yeniIsKalemi, tanim: e.target.value })}
-                    required
                   />
                 </Grid>
                 <Grid item xs={12} md={2}>
                   <TextField
                     fullWidth
                     label="Birim"
+                    name="birim"
                     value={yeniIsKalemi.birim}
                     onChange={(e) => setYeniIsKalemi({ ...yeniIsKalemi, birim: e.target.value })}
-                    required
                   />
                 </Grid>
                 <Grid item xs={12} md={2}>
                   <TextField
                     fullWidth
                     label="Birim Fiyat"
+                    name="birimFiyat"
                     type="number"
                     value={yeniIsKalemi.birimFiyat}
                     onChange={(e) => setYeniIsKalemi({ ...yeniIsKalemi, birimFiyat: e.target.value })}
-                    required
                     InputProps={{
-                      startAdornment: <InputAdornment position="start">{formData.paraBirimi}</InputAdornment>,
+                      endAdornment: <InputAdornment position="end">{formData.paraBirimi}</InputAdornment>
                     }}
                   />
                 </Grid>
@@ -791,116 +844,69 @@ const SozlesmeForm = () => {
                   <TextField
                     fullWidth
                     label="Miktar"
+                    name="miktar"
                     type="number"
                     value={yeniIsKalemi.miktar}
                     onChange={(e) => setYeniIsKalemi({ ...yeniIsKalemi, miktar: e.target.value })}
-                    required
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={2}>
                   <Button
+                    fullWidth
                     variant="contained"
                     onClick={handleIsKalemiKaydet}
-                    startIcon={duzenlemeModu ? <EditIcon /> : <AddIcon />}
+                    sx={{
+                      height: '56px',
+                      bgcolor: sidebarColor,
+                      '&:hover': {
+                        bgcolor: alpha(sidebarColor, 0.8)
+                      }
+                    }}
                   >
                     {duzenlemeModu ? 'Güncelle' : 'Ekle'}
                   </Button>
-                  {duzenlemeModu && (
-                    <Button
-                      variant="outlined"
-                      onClick={() => {
-                        setYeniIsKalemi({
-                          pozNo: '',
-                          tanim: '',
-                          birim: '',
-                          birimFiyat: '',
-                          miktar: ''
-                        });
-                        setDuzenlemeModu(false);
-                      }}
-                      sx={{ ml: 2 }}
-                    >
-                      İptal
-                    </Button>
-                  )}
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
 
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Poz No</TableCell>
-                  <TableCell>İş Kalemi</TableCell>
-                  <TableCell>Birim</TableCell>
-                  <TableCell align="right">Birim Fiyat</TableCell>
-                  <TableCell align="right">Miktar</TableCell>
-                  <TableCell align="right">Toplam</TableCell>
-                  <TableCell>İşlemler</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {isKalemleri.map((isKalemi) => (
-                  <TableRow key={isKalemi.id}>
-                    <TableCell>{isKalemi.pozNo}</TableCell>
-                    <TableCell>{isKalemi.tanim}</TableCell>
-                    <TableCell>{isKalemi.birim}</TableCell>
-                    <TableCell align="right">{formatMoney(isKalemi.birimFiyat)}</TableCell>
-                    <TableCell align="right">{isKalemi.miktar}</TableCell>
-                    <TableCell align="right">{formatMoney(isKalemi.birimFiyat * isKalemi.miktar)}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleIsKalemiDuzenle(isKalemi)}
-                        sx={{ mr: 1 }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleIsKalemiSil(isKalemi.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {isKalemleri.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      Henüz iş kalemi eklenmemiş
-                    </TableCell>
-                  </TableRow>
-                )}
-                <TableRow>
-                  <TableCell colSpan={5} align="right" sx={{ fontWeight: 'bold' }}>
-                    Toplam:
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                    {formatMoney(isKalemleri.reduce((toplam, isKalemi) => 
-                      toplam + (isKalemi.birimFiyat * isKalemi.miktar), 0
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Poz No</TableCell>
+                      <TableCell>Tanım</TableCell>
+                      <TableCell>Birim</TableCell>
+                      <TableCell>Birim Fiyat</TableCell>
+                      <TableCell>Miktar</TableCell>
+                      <TableCell>Tutar</TableCell>
+                      <TableCell>İşlemler</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {isKalemleri.map((isKalemi) => (
+                      <TableRow key={isKalemi.id}>
+                        <TableCell>{isKalemi.pozNo}</TableCell>
+                        <TableCell>{isKalemi.tanim}</TableCell>
+                        <TableCell>{isKalemi.birim}</TableCell>
+                        <TableCell>{isKalemi.birimFiyat} {formData.paraBirimi}</TableCell>
+                        <TableCell>{isKalemi.miktar}</TableCell>
+                        <TableCell>{(isKalemi.birimFiyat * isKalemi.miktar).toFixed(2)} {formData.paraBirimi}</TableCell>
+                        <TableCell>
+                          <IconButton onClick={() => handleIsKalemiDuzenle(isKalemi)}>
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton onClick={() => handleIsKalemiSil(isKalemi.id)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      )}
-
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button onClick={() => navigate('/sozlesme')}>İptal</Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? 'Kaydediliyor...' : (id ? 'Güncelle' : 'Kaydet')}
-        </Button>
-      </Box>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 };

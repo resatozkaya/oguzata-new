@@ -456,12 +456,19 @@ const PersonelKayit = () => {
                     firmaAdi: newValue
                   }));
                 }}
+                onInputChange={(event, newInputValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    firmaAdi: newInputValue
+                  }));
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     fullWidth
                     label="Firma Adı"
                     name="firmaAdi"
+                    value={formData.firmaAdi || ''}
                   />
                 )}
               />

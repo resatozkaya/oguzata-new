@@ -3,7 +3,7 @@ import { collection, getDoc, getDocs, doc, setDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import * as XLSX from 'xlsx';
 import { useNavigate } from "react-router-dom";
-import { Box, CircularProgress, Button, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, Typography, TextField, useTheme } from "@mui/material";
+import { Box, CircularProgress, Button, Select, MenuItem, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, Typography, TextField, useTheme, Switch, FormControlLabel } from "@mui/material";
 import { enqueueSnackbar } from 'notistack';
 import { useTheme as useCustomTheme } from "../contexts/ThemeContext";
 import { usePermission } from "../contexts/PermissionContext";
@@ -32,18 +32,18 @@ const Puantaj = () => {
   const [santiyeler, setSantiyeler] = useState([]);
   const [daysInMonth, setDaysInMonth] = useState([]);
   const [personelList, setPersonelList] = useState([]);
+  const [allPersonelList, setAllPersonelList] = useState([]); // Tüm personel listesi (aktif/pasif)
   const [filteredPersonelList, setFilteredPersonelList] = useState([]);
   const [allPuantajData, setAllPuantajData] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedPersonelName, setSelectedPersonelName] = useState("");
-
-  // Yetki kontrolleri
-  const canView = hasPermission('puantaj_view');
-  const canEdit = hasPermission('puantaj_update');
-  const canCreate = hasPermission('puantaj_create');
-  const canDelete = hasPermission('puantaj_delete');
+  const [showOnlyActive, setShowOnlyActive] = useState(true); // Aktif/Pasif personel gösterimi
+  const [canView, setCanView] = useState(hasPermission('puantaj_view'));
+  const [canEdit, setCanEdit] = useState(hasPermission('puantaj_update'));
+  const [canCreate, setCanCreate] = useState(hasPermission('puantaj_create'));
+  const [canDelete, setCanDelete] = useState(hasPermission('puantaj_delete'));
 
   // Puantaj durumları
   const PUANTAJ_DURUMLARI = {
@@ -149,16 +149,26 @@ const Puantaj = () => {
       setLoading(true);
       try {
         const querySnapshot = await getDocs(collection(db, "personeller"));
-        const fetchedData = querySnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          .filter(personel => personel.aktif === true); // Sadece aktif personelleri al
+        const fetchedData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
         
-        const sortedData = fetchedData.sort((a, b) => 
+        // Tüm personel verilerini sakla
+        const sortedAllData = fetchedData.sort((a, b) => 
           (a.ad + ' ' + a.soyad).localeCompare(b.ad + ' ' + b.soyad)
         );
+        setAllPersonelList(sortedAllData);
+        
+        // Aktif durumuna göre filtreleme
+        const filteredData = showOnlyActive 
+          ? fetchedData.filter(personel => personel.aktif === true)
+          : fetchedData;
+        
+        const sortedData = filteredData.sort((a, b) => 
+          (a.ad + ' ' + a.soyad).localeCompare(b.ad + ' ' + b.soyad)
+        );
+        
         setPersonelList(sortedData);
         setFilteredPersonelList(sortedData);
       } catch (error) {
@@ -170,7 +180,7 @@ const Puantaj = () => {
     };
 
     fetchPersonel();
-  }, []);
+  }, [showOnlyActive]); // showOnlyActive değiştiğinde yeniden veri çek
 
   // Gün sayısını hesapla
   useEffect(() => {
@@ -604,6 +614,23 @@ const Puantaj = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="min-w-[200px]"
+            />
+
+            {/* Aktif/Pasif gösterme switch'i */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showOnlyActive}
+                  onChange={(e) => setShowOnlyActive(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2" className="text-sm">
+                  {showOnlyActive ? "Sadece Aktif Personel" : "Tüm Personel"}
+                </Typography>
+              }
+              className="ml-2"
             />
 
             <Box sx={{ flexGrow: 1 }} /> {/* Boşluk bırakır */}
